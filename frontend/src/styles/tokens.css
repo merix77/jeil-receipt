@@ -1,0 +1,11 @@
+:root {
+  --paper: #FAF7F1;
+  --paper-alt: #F1ECE1;
+  --ink: #2B2724;
+  --ink-muted: #8A8071;
+  --accent: #AF3226;
+  --hairline: #DDD5C7;
+
+  --font-title: 'Noto Serif KR', serif;
+  --font-body: 'Noto Sans KR', sans-serif;
+}

@@ -1,0 +1,5 @@
+spiritual-hour-503102-a6-38b74304baaf.json
+backend/node_modules/
+backend/.env
+backend/uploads/*
+!backend/uploads/.gitkeep

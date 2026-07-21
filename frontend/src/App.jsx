@@ -1,0 +1,77 @@
+import { useEffect, useState } from 'react';
+import HomeScreen from './pages/HomeScreen.jsx';
+import ReviewScreen from './pages/ReviewScreen.jsx';
+import HistoryScreen from './pages/HistoryScreen.jsx';
+import { listReceipts, getReceiptItems } from './api/receipts.js';
+
+export default function App() {
+  const [screen, setScreen] = useState('home');
+  const [activeReceipt, setActiveReceipt] = useState(null);
+
+  useEffect(() => {
+    async function restorePendingReceipt() {
+      const receipts = await listReceipts();
+      const today = new Date().toISOString().slice(0, 10);
+      const pending = receipts.find(
+        (r) => !r.sheet_synced && r.created_at.slice(0, 10) === today
+      );
+      if (!pending) return;
+
+      const { items } = await getReceiptItems(pending.id);
+      setActiveReceipt({ receipt: pending, items });
+      setScreen('review');
+    }
+
+    restorePendingReceipt();
+  }, []);
+
+  function goToReview(receipt, items) {
+    setActiveReceipt({ receipt, items });
+    setScreen('review');
+  }
+
+  function goHome() {
+    setActiveReceipt(null);
+    setScreen('home');
+  }
+
+  return (
+    <div style={{ maxWidth: 480, margin: '0 auto', minHeight: '100vh' }}>
+      <header
+        style={{
+          padding: '16px',
+          borderBottom: '1px solid var(--hairline)',
+          textAlign: 'center',
+        }}
+        onClick={goHome}
+      >
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 20,
+            color: 'var(--accent)',
+            letterSpacing: '0.05em',
+          }}
+        >
+          제일축산 PREMIUM
+        </h1>
+        <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--ink-muted)' }}>
+          거래명세 · 위생관리 장부
+        </p>
+      </header>
+
+      {screen === 'home' && (
+        <HomeScreen onExtracted={goToReview} onOpenHistory={() => setScreen('history')} />
+      )}
+      {screen === 'review' && activeReceipt && (
+        <ReviewScreen
+          key={activeReceipt.receipt.id}
+          receipt={activeReceipt.receipt}
+          items={activeReceipt.items}
+          onDone={goHome}
+        />
+      )}
+      {screen === 'history' && <HistoryScreen onBack={goHome} />}
+    </div>
+  );
+}

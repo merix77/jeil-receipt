@@ -1,0 +1,206 @@
+import { useEffect, useState } from 'react';
+import { createReceipt, listReceipts, autoHygieneCheck, registerEducation } from '../api/receipts.js';
+import { compressReceiptImage } from '../api/compressImage.js';
+import CameraCapture from '../components/CameraCapture.jsx';
+
+const cardStyle = {
+  flex: 1,
+  padding: '16px 8px',
+  fontSize: 15,
+  fontWeight: 700,
+  color: 'var(--accent)',
+  background: 'transparent',
+  border: '1.5px solid var(--accent)',
+  borderRadius: 10,
+  lineHeight: 1.4,
+};
+
+export default function HomeScreen({ onExtracted, onOpenHistory }) {
+  const [todayCount, setTodayCount] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [showCamera, setShowCamera] = useState(false);
+  const [hygieneMsg, setHygieneMsg] = useState(null);
+  const [hygieneLoading, setHygieneLoading] = useState(false);
+  const [eduMsg, setEduMsg] = useState(null);
+  const [eduLoading, setEduLoading] = useState(false);
+
+  useEffect(() => {
+    listReceipts().then((receipts) => {
+      const today = new Date().toISOString().slice(0, 10);
+      setTodayCount(receipts.filter((r) => r.created_at.slice(0, 10) === today).length);
+    });
+  }, []);
+
+  async function uploadFile(file) {
+    setLoading(true);
+    setError(null);
+    try {
+      const compressed = await compressReceiptImage(file);
+      const { receipt, items } = await createReceipt(compressed);
+      onExtracted(receipt, items);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function handleCapture(file) {
+    setShowCamera(false);
+    uploadFile(file);
+  }
+
+  function handleFileChange(e) {
+    const file = e.target.files[0];
+    if (file) uploadFile(file);
+  }
+
+  async function handleHygieneCheck() {
+    setHygieneLoading(true);
+    setHygieneMsg(null);
+    try {
+      const { message } = await autoHygieneCheck();
+      setHygieneMsg(message);
+    } catch (err) {
+      setHygieneMsg(`등록 실패: ${err.message}`);
+    } finally {
+      setHygieneLoading(false);
+    }
+  }
+
+  async function handleEducation() {
+    setEduLoading(true);
+    setEduMsg(null);
+    try {
+      const { message } = await registerEducation();
+      setEduMsg(message);
+    } catch (err) {
+      setEduMsg(`등록 실패: ${err.message}`);
+    } finally {
+      setEduLoading(false);
+    }
+  }
+
+  return (
+    <div style={{ padding: '0 16px' }}>
+      <button
+        onClick={() => setShowCamera(true)}
+        disabled={loading}
+        style={{
+          width: '100%',
+          marginTop: 24,
+          padding: '36px 16px',
+          fontSize: 22,
+          fontWeight: 700,
+          fontFamily: 'var(--font-title)',
+          color: '#fff',
+          background: 'var(--accent)',
+          border: 'none',
+          borderRadius: 12,
+          boxShadow: 'none',
+        }}
+      >
+        {loading ? '분석 중...' : '📷 거래명세서 촬영하기'}
+      </button>
+
+      <label
+        style={{
+          display: 'block',
+          textAlign: 'center',
+          marginTop: 10,
+          color: 'var(--ink-muted)',
+          fontSize: 14,
+          textDecoration: 'underline',
+        }}
+      >
+        갤러리에서 선택
+        <input
+          type="file"
+          accept="image/*"
+          onChange={handleFileChange}
+          disabled={loading}
+          style={{ display: 'none' }}
+        />
+      </label>
+
+      <button
+        onClick={onOpenHistory}
+        style={{
+          width: '100%',
+          marginTop: 12,
+          padding: '18px 16px',
+          fontSize: 17,
+          fontWeight: 700,
+          fontFamily: 'var(--font-title)',
+          color: 'var(--accent)',
+          background: 'transparent',
+          border: '2px solid var(--accent)',
+          borderRadius: 12,
+        }}
+      >
+        🔍 거래명세서 조회하기
+      </button>
+
+      {error && (
+        <div
+          style={{
+            marginTop: 12,
+            padding: 12,
+            border: '1px solid var(--accent)',
+            background: '#FBEAE7',
+            color: 'var(--accent)',
+            borderRadius: 8,
+          }}
+        >
+          업로드 실패: {error}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+        <button onClick={handleHygieneCheck} disabled={hygieneLoading} style={cardStyle}>
+          🧼
+          <br />
+          {hygieneLoading ? '등록 중...' : '위생점검 자동등록'}
+        </button>
+        <button onClick={handleEducation} disabled={eduLoading} style={cardStyle}>
+          📋
+          <br />
+          {eduLoading ? '등록 중...' : '위생교육 결과서 등록'}
+        </button>
+      </div>
+
+      {hygieneMsg && <p style={{ marginTop: 8, color: 'var(--ink-muted)', fontSize: 14 }}>{hygieneMsg}</p>}
+      {eduMsg && <p style={{ marginTop: 8, color: 'var(--ink-muted)', fontSize: 14 }}>{eduMsg}</p>}
+
+      <hr style={{ border: 'none', borderTop: '1px solid var(--hairline)', margin: '24px 0 0' }} />
+
+      <p style={{ padding: '14px 0', margin: 0, fontSize: 15 }}>
+        오늘 기록 <strong style={{ color: 'var(--accent)' }}>{todayCount}건</strong>
+      </p>
+
+      <div style={{ display: 'flex', gap: 16, paddingBottom: 24, fontSize: 13 }}>
+        <a
+          href="https://docs.google.com/spreadsheets/d/1_Ud__ZfAFF8xFhfMa-oWkfC0YSx6otrrSE5tdBGiFnY"
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: 'var(--ink-muted)' }}
+        >
+          위생점검표 시트 열기 ↗
+        </a>
+        <a
+          href="https://docs.google.com/spreadsheets/d/1vVdyIGuYhGELd8OZHaSNyjGXqqOOapcXAk44kkJsUWM"
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: 'var(--ink-muted)' }}
+        >
+          위생교육 시트 열기 ↗
+        </a>
+      </div>
+
+      {showCamera && (
+        <CameraCapture onCapture={handleCapture} onClose={() => setShowCamera(false)} />
+      )}
+    </div>
+  );
+}
