@@ -1,7 +1,40 @@
 const pool = require('../config/db');
 const { extractReceiptItems } = require('../services/ocrService');
 const { appendPurchaseRows } = require('../services/sheetsService');
-const { toDateStr } = require('../utils/date');
+const { todayStr } = require('../utils/date');
+
+// The OCR prompt tells Gemini to mark unreadable guesses with a trailing "?".
+// That marker is fine in VARCHAR columns (the UI highlights it), but it must
+// never reach the DATE/NUMERIC columns — normalize both here so a blurry photo
+// can't crash an insert or the duplicate check.
+function normalizeTypedFields(raw) {
+  const uncertainFields = [];
+
+  let tradeDate = typeof raw.trade_date === 'string' ? raw.trade_date.trim() : '';
+  if (tradeDate.endsWith('?')) {
+    tradeDate = tradeDate.slice(0, -1).trim();
+    uncertainFields.push('trade_date');
+  }
+  const m = tradeDate.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  tradeDate = m ? `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}` : '';
+  if (!tradeDate) {
+    tradeDate = todayStr();
+    if (!uncertainFields.includes('trade_date')) uncertainFields.push('trade_date');
+  }
+
+  let weightRaw = typeof raw.weight_kg === 'string' ? raw.weight_kg.trim() : raw.weight_kg;
+  if (typeof weightRaw === 'string' && weightRaw.endsWith('?')) {
+    weightRaw = weightRaw.slice(0, -1).trim();
+    uncertainFields.push('weight_kg');
+  }
+  const parsed = Number(weightRaw);
+  const weight = weightRaw !== '' && weightRaw != null && Number.isFinite(parsed) ? parsed : null;
+  if (weight === null && raw.weight_kg && !uncertainFields.includes('weight_kg')) {
+    uncertainFields.push('weight_kg');
+  }
+
+  return { tradeDate, weight, uncertainFields };
+}
 
 // Same statement re-photographed = every extracted item's (trade_date, trace_number)
 // pair already exists. Items without a readable trace_number can't be matched, so a
@@ -10,8 +43,8 @@ async function isDuplicateReceipt(items) {
   const pairs = [
     ...new Map(
       items
-        .filter((it) => it.trade_date && it.trace_number)
-        .map((it) => [`${it.trade_date}|${it.trace_number}`, [it.trade_date, it.trace_number]])
+        .filter((it) => it.trace_number)
+        .map((it) => [`${it.tradeDate}|${it.trace_number}`, [it.tradeDate, it.trace_number]])
     ).values(),
   ];
   if (pairs.length === 0) return false;
@@ -56,7 +89,9 @@ async function createReceipt(req, res) {
     });
   }
 
-  if (await isDuplicateReceipt(items)) {
+  const normalized = items.map((item) => ({ ...item, ...normalizeTypedFields(item) }));
+
+  if (await isDuplicateReceipt(normalized)) {
     return res.status(409).json({
       success: false,
       error: '이미 등록된 거래명세서입니다 (같은 거래일자·이력번호의 항목이 모두 존재).',
@@ -64,37 +99,43 @@ async function createReceipt(req, res) {
     });
   }
 
-  const { rows: [receipt] } = await pool.query(
-    'INSERT INTO receipts (image_url, ocr_raw_json) VALUES ($1, $2) RETURNING *',
-    [imageUrl, JSON.stringify(items)]
-  );
+  // Both inserts in one transaction: a failure (e.g. a VARCHAR overflow from a
+  // garbled OCR value) must not leave an item-less receipt row behind.
+  const client = await pool.connect();
+  let receipt, insertedItems;
+  try {
+    await client.query('BEGIN');
 
-  const params = [];
-  const valuesSql = items
-    .map((item, i) => {
-      // trade_date is NOT NULL; OCR returns "" when unreadable, so fall back to
-      // today and flag the item as uncertain rather than failing the insert.
-      const uncertainFields = [];
-      let tradeDate = item.trade_date;
-      if (!tradeDate) {
-        tradeDate = toDateStr(new Date());
-        uncertainFields.push('trade_date');
-      }
+    ({ rows: [receipt] } = await client.query(
+      'INSERT INTO receipts (image_url, ocr_raw_json) VALUES ($1, $2) RETURNING *',
+      [imageUrl, JSON.stringify(items)]
+    ));
 
-      params.push(
-        receipt.id, tradeDate, item.meat_type, item.weight_kg || null, item.origin,
-        item.cut_name, item.grade, item.slaughterhouse, item.trace_number, item.supplier,
-        uncertainFields.length > 0, uncertainFields
-      );
-      const base = i * ITEM_COLUMNS.length;
-      return `(${ITEM_COLUMNS.map((_, j) => `$${base + j + 1}`).join(', ')})`;
-    })
-    .join(', ');
+    const params = [];
+    const valuesSql = normalized
+      .map((item, i) => {
+        params.push(
+          receipt.id, item.tradeDate, item.meat_type, item.weight, item.origin,
+          item.cut_name, item.grade, item.slaughterhouse, item.trace_number, item.supplier,
+          item.uncertainFields.length > 0, item.uncertainFields
+        );
+        const base = i * ITEM_COLUMNS.length;
+        return `(${ITEM_COLUMNS.map((_, j) => `$${base + j + 1}`).join(', ')})`;
+      })
+      .join(', ');
 
-  const { rows: insertedItems } = await pool.query(
-    `INSERT INTO receipt_items (${ITEM_COLUMNS.join(', ')}) VALUES ${valuesSql} RETURNING *`,
-    params
-  );
+    ({ rows: insertedItems } = await client.query(
+      `INSERT INTO receipt_items (${ITEM_COLUMNS.join(', ')}) VALUES ${valuesSql} RETURNING *`,
+      params
+    ));
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 
   res.json({ success: true, data: { receipt, items: insertedItems }, message: 'OCR extraction complete' });
 }
@@ -103,21 +144,43 @@ async function updateReceiptItems(req, res) {
   const { id } = req.params;
   const { items } = req.body;
 
+  // User-edited values are free text — validate the typed columns up front so a
+  // typo returns a clear 400 instead of a DB cast error.
+  for (const item of items) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(item.trade_date || '')) {
+      return res.status(400).json({
+        success: false,
+        error: `거래년월일은 YYYY-MM-DD 형식으로 입력해주세요 (입력값: "${item.trade_date}")`,
+        code: 'INVALID_TRADE_DATE',
+      });
+    }
+    if (item.weight_kg !== null && item.weight_kg !== '' && !Number.isFinite(Number(item.weight_kg))) {
+      return res.status(400).json({
+        success: false,
+        error: `물량(kg)은 숫자로 입력해주세요 (입력값: "${item.weight_kg}")`,
+        code: 'INVALID_WEIGHT',
+      });
+    }
+  }
+
   const updated = [];
   for (const item of items) {
+    // The user has reviewed this item, so the uncertainty flags are cleared.
     const { rows: [row] } = await pool.query(
       `UPDATE receipt_items SET
         trade_date = $1, meat_type = $2, weight_kg = $3, origin = $4, cut_name = $5,
-        grade = $6, slaughterhouse = $7, trace_number = $8, supplier = $9, updated_at = NOW()
+        grade = $6, slaughterhouse = $7, trace_number = $8, supplier = $9,
+        is_uncertain = FALSE, uncertain_fields = NULL, updated_at = NOW()
        WHERE id = $10 AND receipt_id = $11
        RETURNING *`,
       [
-        item.trade_date, item.meat_type, item.weight_kg, item.origin, item.cut_name,
+        item.trade_date, item.meat_type, item.weight_kg === '' ? null : item.weight_kg,
+        item.origin, item.cut_name,
         item.grade, item.slaughterhouse, item.trace_number, item.supplier,
         item.id, id,
       ]
     );
-    updated.push(row);
+    if (row) updated.push(row);
   }
 
   res.json({ success: true, data: { items: updated }, message: 'Items updated' });
@@ -126,10 +189,25 @@ async function updateReceiptItems(req, res) {
 async function confirmReceipt(req, res) {
   const { id } = req.params;
 
+  const { rows: [receipt] } = await pool.query(
+    'SELECT id, sheet_synced FROM receipts WHERE id = $1 AND is_deleted = FALSE',
+    [id]
+  );
+  if (!receipt) {
+    return res.status(404).json({ success: false, error: '해당 영수증을 찾을 수 없습니다', code: 'NOT_FOUND' });
+  }
+  // Double-tap / client retry must not append the same rows to the ledger twice.
+  if (receipt.sheet_synced) {
+    return res.json({ success: true, data: { receiptId: id }, message: '이미 시트에 반영된 건입니다' });
+  }
+
   const { rows: items } = await pool.query(
     'SELECT * FROM receipt_items WHERE receipt_id = $1 AND is_deleted = FALSE ORDER BY trade_date',
     [id]
   );
+  if (items.length === 0) {
+    return res.status(422).json({ success: false, error: '기록할 항목이 없습니다', code: 'NO_ITEMS' });
+  }
 
   try {
     await appendPurchaseRows(items);
@@ -164,7 +242,8 @@ async function listReceipts(req, res) {
                   'id', ri.id, 'trade_date', ri.trade_date, 'meat_type', ri.meat_type,
                   'weight_kg', ri.weight_kg, 'origin', ri.origin, 'cut_name', ri.cut_name,
                   'grade', ri.grade, 'slaughterhouse', ri.slaughterhouse,
-                  'trace_number', ri.trace_number, 'supplier', ri.supplier
+                  'trace_number', ri.trace_number, 'supplier', ri.supplier,
+                  'is_uncertain', ri.is_uncertain, 'uncertain_fields', ri.uncertain_fields
                 ) ORDER BY ri.id
               ) FILTER (WHERE ri.id IS NOT NULL), '[]'
             ) AS items

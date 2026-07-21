@@ -117,11 +117,28 @@ async function registerEducation() {
     sampleIndex++;
   }
 
-  await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId,
-    requestBody: { valueInputOption: 'RAW', data },
-  });
+  // A stray future-dated tab can make the range empty — treat as done, not error.
+  if (registered.length === 0) {
+    return { dates: [], alreadyDone: true };
+  }
+
+  const dupRes = await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
+  try {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: { valueInputOption: 'RAW', data },
+    });
+  } catch (err) {
+    // Field fill failed: delete the just-created blank tabs so the next run
+    // retries cleanly instead of seeing them as already registered.
+    const deletes = dupRes.data.replies.map((r) => ({
+      deleteSheet: { sheetId: r.duplicateSheet.properties.sheetId },
+    }));
+    await sheets.spreadsheets
+      .batchUpdate({ spreadsheetId, requestBody: { requests: deletes } })
+      .catch(() => {});
+    throw err;
+  }
 
   return { dates: registered, alreadyDone: false };
 }

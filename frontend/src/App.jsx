@@ -22,7 +22,7 @@ export default function App() {
       setScreen('review');
     }
 
-    restorePendingReceipt();
+    restorePendingReceipt().catch(console.error);
   }, []);
 
   function goToReview(receipt, items) {

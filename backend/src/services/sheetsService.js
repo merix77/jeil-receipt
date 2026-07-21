@@ -26,7 +26,9 @@ async function appendPurchaseRows(items) {
     byMonth.get(month).push([
       item.trade_date,
       item.meat_type,
-      item.weight_kg,
+      // pg returns NUMERIC as a string; append as a number so the sheet cell
+      // is numeric and SUM() over the 물량(kg) column works.
+      item.weight_kg == null ? '' : Number(item.weight_kg),
       item.origin,
       item.cut_name,
       item.grade,

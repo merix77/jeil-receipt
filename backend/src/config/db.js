@@ -6,6 +6,9 @@ types.setTypeParser(1082, (value) => value);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  // created_at uses NOW() with a TIMESTAMP column: pin the session timezone so
+  // stored wall times are KST even when the DB server (e.g. Railway) runs UTC.
+  options: '-c TimeZone=Asia/Seoul',
 });
 
 module.exports = pool;

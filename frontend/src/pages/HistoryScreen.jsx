@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { listReceipts, getReceiptImageUrl, confirmReceipt } from '../api/receipts.js';
 import StampMark from '../components/StampMark.jsx';
 import { FIELDS } from '../fields.js';
-import { monthStr } from '../dates.js';
+import { monthStr, localDateStr } from '../dates.js';
 
 function summarize(items) {
   if (items.length === 0) return '항목 없음';
@@ -100,7 +100,7 @@ export default function HistoryScreen({ onBack }) {
           >
             <div>
               <div style={{ fontWeight: 700 }}>
-                {r.created_at.slice(5, 10).replace('-', '/')}{' '}
+                {localDateStr(r.created_at).slice(5).replace('-', '/')}{' '}
                 <span style={{ fontWeight: 400 }}>{r.items[0]?.supplier || ''}</span>
               </div>
               <div style={{ fontSize: 13, color: 'var(--ink-muted)', marginTop: 2 }}>{summarize(r.items)}</div>

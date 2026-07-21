@@ -12,6 +12,16 @@ export default function ReviewScreen({ receipt, items: initialItems, onDone }) {
   }
 
   async function handleConfirm() {
+    // Legal-record gate: "?"-marked guesses must be corrected against the
+    // original photo before anything reaches the sheet.
+    const unresolved = items.some((item) =>
+      Object.values(item).some((v) => typeof v === 'string' && v.trim().endsWith('?'))
+    );
+    if (unresolved) {
+      setError('"?"가 남아있는 항목이 있습니다. 원본 사진과 대조해 수정한 뒤 기록해주세요.');
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {

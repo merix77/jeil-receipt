@@ -71,12 +71,19 @@ async function extractReceiptItems(imagePath) {
     throw ocrError(502, 'OCR_FAILED', 'OCR 인식에 실패했습니다. 다시 시도해주세요.');
   }
 
+  let parsed;
   try {
-    return JSON.parse(response.text);
+    parsed = JSON.parse(response.text);
   } catch (err) {
-    console.error('OCR response parse failed:', response.text);
+    parsed = null;
+  }
+  // Gemini can legally return an object despite the array-only prompt —
+  // anything but an array must fail here, not crash downstream.
+  if (!Array.isArray(parsed)) {
+    console.error('OCR response is not a JSON array:', response.text);
     throw ocrError(502, 'OCR_FAILED', 'OCR 응답 해석에 실패했습니다. 다시 시도해주세요.');
   }
+  return parsed;
 }
 
 module.exports = { extractReceiptItems };

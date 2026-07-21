@@ -1,3 +1,7 @@
+// All date logic (sheet tabs, legal trade dates, "today" checks) assumes KST.
+// Railway containers default to UTC, so pin the timezone before anything loads.
+process.env.TZ = process.env.TZ || 'Asia/Seoul';
+
 require('dotenv').config();
 
 const express = require('express');
@@ -15,9 +19,17 @@ app.use(requireApiKey);
 app.use('/receipts', receiptsRouter);
 app.use('/hygiene', hygieneRouter);
 
+app.use((req, res) => {
+  res.status(404).json({ success: false, error: 'Not found', code: 'NOT_FOUND' });
+});
+
 app.use((err, req, res, next) => {
   console.error(err);
-  res.status(500).json({ success: false, error: 'Internal server error', code: 'INTERNAL_ERROR' });
+  res.status(err.status || 500).json({
+    success: false,
+    error: err.status ? err.message : 'Internal server error',
+    code: err.code || 'INTERNAL_ERROR',
+  });
 });
 
 const port = process.env.PORT || 3000;

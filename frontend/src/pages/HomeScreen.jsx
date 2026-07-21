@@ -30,10 +30,12 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
   const [eduLoading, setEduLoading] = useState(false);
 
   useEffect(() => {
-    listReceipts(monthStr(new Date())).then((receipts) => {
-      const today = todayStr();
-      setTodayCount(receipts.filter((r) => localDateStr(r.created_at) === today).length);
-    });
+    listReceipts(monthStr(new Date()))
+      .then((receipts) => {
+        const today = todayStr();
+        setTodayCount(receipts.filter((r) => localDateStr(r.created_at) === today).length);
+      })
+      .catch(console.error);
   }, []);
 
   async function uploadFile(file) {

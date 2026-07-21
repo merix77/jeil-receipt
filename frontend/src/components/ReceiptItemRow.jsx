@@ -1,14 +1,18 @@
 import { FIELDS } from '../fields.js';
 
-function isUncertain(value) {
-  return typeof value === 'string' && value.trim().endsWith('?');
+// Two uncertainty signals: a trailing "?" the OCR left in the value itself, and
+// the backend's uncertain_fields list (e.g. an unreadable date replaced with today).
+function isUncertain(item, key) {
+  const value = item[key];
+  if (typeof value === 'string' && value.trim().endsWith('?')) return true;
+  return Array.isArray(item.uncertain_fields) && item.uncertain_fields.includes(key);
 }
 
 export default function ReceiptItemRow({ item, onChange }) {
   return (
     <div style={{ borderBottom: '1px solid var(--hairline)', padding: '8px 0' }}>
       {FIELDS.map(({ key, label }) => {
-        const uncertain = isUncertain(item[key]);
+        const uncertain = isUncertain(item, key);
         return (
           <div key={key} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <label style={{ width: 80, color: 'var(--ink-muted)' }}>{label}</label>
