@@ -76,16 +76,8 @@ export default function CameraCapture({ onCapture, onClose }) {
         {!error && (
           <button
             onClick={handleShutter}
-            style={{
-              flex: 2,
-              padding: 14,
-              fontSize: 16,
-              fontWeight: 700,
-              color: '#fff',
-              background: 'var(--accent)',
-              border: 'none',
-              borderRadius: 8,
-            }}
+            className="btn-accent"
+            style={{ flex: 2, padding: 14, fontSize: 16 }}
           >
             촬영
           </button>

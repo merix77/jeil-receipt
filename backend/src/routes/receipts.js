@@ -6,7 +6,6 @@ const {
   updateReceiptItems,
   confirmReceipt,
   listReceipts,
-  getReceiptItems,
   getReceiptImage,
 } = require('../controllers/receiptsController');
 
@@ -16,7 +15,6 @@ router.post('/', upload.single('image'), asyncHandler(createReceipt));
 router.patch('/:id/items', asyncHandler(updateReceiptItems));
 router.post('/:id/confirm', asyncHandler(confirmReceipt));
 router.get('/', asyncHandler(listReceipts));
-router.get('/:id/items', asyncHandler(getReceiptItems));
 router.get('/:id/image', asyncHandler(getReceiptImage));
 
 module.exports = router;

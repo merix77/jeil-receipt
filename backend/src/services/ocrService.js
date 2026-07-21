@@ -34,26 +34,49 @@ function mediaTypeFromExt(imagePath) {
   return 'image/jpeg';
 }
 
+function ocrError(status, code, message) {
+  const e = new Error(message);
+  e.status = status;
+  e.code = code;
+  return e;
+}
+
+// Provider-specific error semantics stay in this file so a future model swap
+// (e.g. Gemini → Claude) only touches the OCR service.
 async function extractReceiptItems(imagePath) {
   const imageBase64 = fs.readFileSync(imagePath, { encoding: 'base64' });
 
-  const response = await genAI.models.generateContent({
-    model: 'gemini-2.5-flash',
-    contents: [
-      {
-        role: 'user',
-        parts: [
-          { inlineData: { mimeType: mediaTypeFromExt(imagePath), data: imageBase64 } },
-          { text: EXTRACTION_PROMPT },
-        ],
+  let response;
+  try {
+    response = await genAI.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            { inlineData: { mimeType: mediaTypeFromExt(imagePath), data: imageBase64 } },
+            { text: EXTRACTION_PROMPT },
+          ],
+        },
+      ],
+      config: {
+        responseMimeType: 'application/json',
       },
-    ],
-    config: {
-      responseMimeType: 'application/json',
-    },
-  });
+    });
+  } catch (err) {
+    console.error(err);
+    if (String(err.message).includes('RESOURCE_EXHAUSTED')) {
+      throw ocrError(429, 'OCR_QUOTA_EXCEEDED', '오늘의 무료 OCR 사용량(20건)을 모두 사용했습니다. 한도는 한국시간 오후 4~5시경 초기화됩니다.');
+    }
+    throw ocrError(502, 'OCR_FAILED', 'OCR 인식에 실패했습니다. 다시 시도해주세요.');
+  }
 
-  return JSON.parse(response.text);
+  try {
+    return JSON.parse(response.text);
+  } catch (err) {
+    console.error('OCR response parse failed:', response.text);
+    throw ocrError(502, 'OCR_FAILED', 'OCR 응답 해석에 실패했습니다. 다시 시도해주세요.');
+  }
 }
 
 module.exports = { extractReceiptItems };

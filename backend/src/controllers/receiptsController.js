@@ -1,27 +1,37 @@
 const pool = require('../config/db');
 const { extractReceiptItems } = require('../services/ocrService');
 const { appendPurchaseRows } = require('../services/sheetsService');
+const { toDateStr } = require('../utils/date');
 
 // Same statement re-photographed = every extracted item's (trade_date, trace_number)
 // pair already exists. Items without a readable trace_number can't be matched, so a
 // receipt where none was read always passes.
 async function isDuplicateReceipt(items) {
-  const checkable = items.filter((it) => it.trade_date && it.trace_number);
-  if (checkable.length === 0) return false;
+  const pairs = [
+    ...new Map(
+      items
+        .filter((it) => it.trade_date && it.trace_number)
+        .map((it) => [`${it.trade_date}|${it.trace_number}`, [it.trade_date, it.trace_number]])
+    ).values(),
+  ];
+  if (pairs.length === 0) return false;
 
-  for (const it of checkable) {
-    const { rows } = await pool.query(
-      `SELECT 1 FROM receipt_items ri
-       JOIN receipts r ON r.id = ri.receipt_id
-       WHERE r.is_deleted = FALSE AND ri.is_deleted = FALSE
-         AND ri.trade_date = $1 AND ri.trace_number = $2
-       LIMIT 1`,
-      [it.trade_date, it.trace_number]
-    );
-    if (rows.length === 0) return false;
-  }
-  return true;
+  const placeholders = pairs.map((_, i) => `($${i * 2 + 1}::date, $${i * 2 + 2})`).join(', ');
+  const { rows } = await pool.query(
+    `SELECT COUNT(DISTINCT (ri.trade_date, ri.trace_number)) AS n
+     FROM receipt_items ri
+     JOIN receipts r ON r.id = ri.receipt_id
+     WHERE r.is_deleted = FALSE AND ri.is_deleted = FALSE
+       AND (ri.trade_date, ri.trace_number) IN (${placeholders})`,
+    pairs.flat()
+  );
+  return Number(rows[0].n) === pairs.length;
 }
+
+const ITEM_COLUMNS = [
+  'receipt_id', 'trade_date', 'meat_type', 'weight_kg', 'origin', 'cut_name',
+  'grade', 'slaughterhouse', 'trace_number', 'supplier', 'is_uncertain', 'uncertain_fields',
+];
 
 async function createReceipt(req, res) {
   if (!req.file) {
@@ -30,31 +40,15 @@ async function createReceipt(req, res) {
 
   const imageUrl = req.file.path;
 
-  const { rows: [receipt] } = await pool.query(
-    'INSERT INTO receipts (image_url) VALUES ($1) RETURNING *',
-    [imageUrl]
-  );
-
+  // OCR and validation run before any DB write, so failures leave nothing to clean up.
   let items;
   try {
     items = await extractReceiptItems(imageUrl);
   } catch (err) {
-    console.error(err);
-    await pool.query('UPDATE receipts SET is_deleted = TRUE WHERE id = $1', [receipt.id]);
-    if (err.message && err.message.includes('RESOURCE_EXHAUSTED')) {
-      return res.status(429).json({
-        success: false,
-        error: '오늘의 무료 OCR 사용량(20건)을 모두 사용했습니다. 한도는 한국시간 오후 4~5시경 초기화됩니다.',
-        code: 'OCR_QUOTA_EXCEEDED',
-      });
-    }
-    return res.status(502).json({ success: false, error: 'OCR 인식에 실패했습니다. 다시 시도해주세요.', code: 'OCR_FAILED' });
+    return res.status(err.status || 502).json({ success: false, error: err.message, code: err.code || 'OCR_FAILED' });
   }
 
-  await pool.query('UPDATE receipts SET ocr_raw_json = $1 WHERE id = $2', [JSON.stringify(items), receipt.id]);
-
   if (items.length === 0) {
-    await pool.query('UPDATE receipts SET is_deleted = TRUE WHERE id = $1', [receipt.id]);
     return res.status(422).json({
       success: false,
       error: '사진에서 거래 항목을 찾지 못했습니다. 다시 촬영해주세요.',
@@ -63,7 +57,6 @@ async function createReceipt(req, res) {
   }
 
   if (await isDuplicateReceipt(items)) {
-    await pool.query('UPDATE receipts SET is_deleted = TRUE WHERE id = $1', [receipt.id]);
     return res.status(409).json({
       success: false,
       error: '이미 등록된 거래명세서입니다 (같은 거래일자·이력번호의 항목이 모두 존재).',
@@ -71,39 +64,37 @@ async function createReceipt(req, res) {
     });
   }
 
-  const insertedItems = [];
-  for (const item of items) {
-    // trade_date is NOT NULL in the schema; OCR returns "" when it couldn't read a date,
-    // so fall back to today's date and flag the item as uncertain rather than crashing the insert.
-    const uncertainFields = [];
-    let tradeDate = item.trade_date;
-    if (!tradeDate) {
-      tradeDate = new Date().toISOString().slice(0, 10);
-      uncertainFields.push('trade_date');
-    }
+  const { rows: [receipt] } = await pool.query(
+    'INSERT INTO receipts (image_url, ocr_raw_json) VALUES ($1, $2) RETURNING *',
+    [imageUrl, JSON.stringify(items)]
+  );
 
-    const { rows: [row] } = await pool.query(
-      `INSERT INTO receipt_items
-        (receipt_id, trade_date, meat_type, weight_kg, origin, cut_name, grade, slaughterhouse, trace_number, supplier, is_uncertain, uncertain_fields)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       RETURNING *`,
-      [
-        receipt.id,
-        tradeDate,
-        item.meat_type,
-        item.weight_kg || null,
-        item.origin,
-        item.cut_name,
-        item.grade,
-        item.slaughterhouse,
-        item.trace_number,
-        item.supplier,
-        uncertainFields.length > 0,
-        uncertainFields,
-      ]
-    );
-    insertedItems.push(row);
-  }
+  const params = [];
+  const valuesSql = items
+    .map((item, i) => {
+      // trade_date is NOT NULL; OCR returns "" when unreadable, so fall back to
+      // today and flag the item as uncertain rather than failing the insert.
+      const uncertainFields = [];
+      let tradeDate = item.trade_date;
+      if (!tradeDate) {
+        tradeDate = toDateStr(new Date());
+        uncertainFields.push('trade_date');
+      }
+
+      params.push(
+        receipt.id, tradeDate, item.meat_type, item.weight_kg || null, item.origin,
+        item.cut_name, item.grade, item.slaughterhouse, item.trace_number, item.supplier,
+        uncertainFields.length > 0, uncertainFields
+      );
+      const base = i * ITEM_COLUMNS.length;
+      return `(${ITEM_COLUMNS.map((_, j) => `$${base + j + 1}`).join(', ')})`;
+    })
+    .join(', ');
+
+  const { rows: insertedItems } = await pool.query(
+    `INSERT INTO receipt_items (${ITEM_COLUMNS.join(', ')}) VALUES ${valuesSql} RETURNING *`,
+    params
+  );
 
   res.json({ success: true, data: { receipt, items: insertedItems }, message: 'OCR extraction complete' });
 }
@@ -202,15 +193,4 @@ async function getReceiptImage(req, res) {
   res.sendFile(receipt.image_url);
 }
 
-async function getReceiptItems(req, res) {
-  const { id } = req.params;
-
-  const { rows } = await pool.query(
-    'SELECT * FROM receipt_items WHERE receipt_id = $1 AND is_deleted = FALSE ORDER BY id',
-    [id]
-  );
-
-  res.json({ success: true, data: { items: rows }, message: 'OK' });
-}
-
-module.exports = { createReceipt, updateReceiptItems, confirmReceipt, listReceipts, getReceiptItems, getReceiptImage };
+module.exports = { createReceipt, updateReceiptItems, confirmReceipt, listReceipts, getReceiptImage };

@@ -37,17 +37,13 @@ export default function ReviewScreen({ receipt, items: initialItems, onDone }) {
       <button
         onClick={handleConfirm}
         disabled={saving}
+        className="btn-accent"
         style={{
           position: 'sticky',
           bottom: 16,
           width: '100%',
           padding: '14px',
           fontSize: 16,
-          fontWeight: 700,
-          color: '#fff',
-          background: 'var(--accent)',
-          border: 'none',
-          borderRadius: 8,
         }}
       >
         {saving ? '기록 중...' : '장부에 기록하기'}

@@ -1,4 +1,6 @@
 const sheets = require('../config/google');
+const { toDateStr } = require('../utils/date');
+const { INSPECTOR_NAME, STORE_NAME, EDU_DURATION, EDU_TARGET, EDU_ATTENDEES } = require('../config/business');
 
 const TEMPLATE_TITLE = '위생교육결과서';
 
@@ -56,38 +58,18 @@ const EDUCATION_SAMPLES = [
 ];
 
 const BACKFILL_LIMIT_DAYS = 31;
-const ATTENDEES = '2명';
 
-function toDateStr(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-async function createEducationTab(spreadsheetId, templateSheetId, dateStr, sample) {
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      requests: [
-        { duplicateSheet: { sourceSheetId: templateSheetId, newSheetName: dateStr } },
-      ],
-    },
-  });
-
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId,
-    requestBody: {
-      valueInputOption: 'RAW',
-      data: [
-        { range: `'${dateStr}'!B4`, values: [[dateStr]] },
-        { range: `'${dateStr}'!E4`, values: [['노영곤']] },
-        { range: `'${dateStr}'!B5`, values: [['제일축산']] },
-        { range: `'${dateStr}'!E5`, values: [['30분~1시간']] },
-        { range: `'${dateStr}'!B6`, values: [['전직원']] },
-        { range: `'${dateStr}'!E6`, values: [[ATTENDEES]] },
-        { range: `'${dateStr}'!B7`, values: [[sample.topic]] },
-        { range: `'${dateStr}'!B8`, values: [[sample.content]] },
-      ],
-    },
-  });
+function educationFieldData(dateStr, sample) {
+  return [
+    { range: `'${dateStr}'!B4`, values: [[dateStr]] },
+    { range: `'${dateStr}'!E4`, values: [[INSPECTOR_NAME]] },
+    { range: `'${dateStr}'!B5`, values: [[STORE_NAME]] },
+    { range: `'${dateStr}'!E5`, values: [[EDU_DURATION]] },
+    { range: `'${dateStr}'!B6`, values: [[EDU_TARGET]] },
+    { range: `'${dateStr}'!E6`, values: [[EDU_ATTENDEES]] },
+    { range: `'${dateStr}'!B7`, values: [[sample.topic]] },
+    { range: `'${dateStr}'!B8`, values: [[sample.content]] },
+  ];
 }
 
 // Registers today's result form, back-filling one form per missed day since the
@@ -95,7 +77,7 @@ async function createEducationTab(spreadsheetId, templateSheetId, dateStr, sampl
 async function registerEducation() {
   const spreadsheetId = process.env.SHEET_ID_HYGIENE_EDU;
   const today = new Date();
-  const todayStr = toDateStr(today);
+  const todayDateStr = toDateStr(today);
 
   const meta = await sheets.spreadsheets.get({ spreadsheetId });
   const template = meta.data.sheets.find((s) => s.properties.title === TEMPLATE_TITLE);
@@ -104,7 +86,7 @@ async function registerEducation() {
     .filter((t) => /^\d{4}-\d{2}-\d{2}$/.test(t))
     .sort();
 
-  if (dateTabs.includes(todayStr)) {
+  if (dateTabs.includes(todayDateStr)) {
     return { dates: [], alreadyDone: true };
   }
 
@@ -118,15 +100,28 @@ async function registerEducation() {
     if (start < limit) start = limit;
   }
 
+  // Two API calls total regardless of how many days are back-filled:
+  // one batchUpdate duplicating every tab, one values.batchUpdate filling all fields.
   let sampleIndex = dateTabs.length;
+  const requests = [];
+  const data = [];
   const registered = [];
   for (let d = new Date(start); d <= today; d.setDate(d.getDate() + 1)) {
     const dateStr = toDateStr(d);
     const sample = EDUCATION_SAMPLES[sampleIndex % EDUCATION_SAMPLES.length];
-    await createEducationTab(spreadsheetId, template.properties.sheetId, dateStr, sample);
+    requests.push({
+      duplicateSheet: { sourceSheetId: template.properties.sheetId, newSheetName: dateStr },
+    });
+    data.push(...educationFieldData(dateStr, sample));
     registered.push(dateStr);
     sampleIndex++;
   }
+
+  await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: { valueInputOption: 'RAW', data },
+  });
 
   return { dates: registered, alreadyDone: false };
 }

@@ -1,10 +1,8 @@
 import { useEffect, useState } from 'react';
 import { listReceipts, getReceiptImageUrl, confirmReceipt } from '../api/receipts.js';
 import StampMark from '../components/StampMark.jsx';
-
-function monthString(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
+import { FIELDS } from '../fields.js';
+import { monthStr } from '../dates.js';
 
 function summarize(items) {
   if (items.length === 0) return '항목 없음';
@@ -16,7 +14,7 @@ function summarize(items) {
 }
 
 export default function HistoryScreen({ onBack }) {
-  const [month, setMonth] = useState(() => monthString(new Date()));
+  const [month, setMonth] = useState(() => monthStr(new Date()));
   const [receipts, setReceipts] = useState([]);
   const [openId, setOpenId] = useState(null);
   const [imageUrl, setImageUrl] = useState(null);
@@ -29,9 +27,13 @@ export default function HistoryScreen({ onBack }) {
 
   useEffect(load, [month]);
 
+  // Revoke each blob URL when replaced or on unmount — otherwise every opened
+  // photo (~1.5MB) stays in memory for the whole session.
+  useEffect(() => () => { if (imageUrl) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
+
   function shiftMonth(delta) {
     const [y, m] = month.split('-').map(Number);
-    setMonth(monthString(new Date(y, m - 1 + delta, 1)));
+    setMonth(monthStr(new Date(y, m - 1 + delta, 1)));
     setOpenId(null);
     setImageUrl(null);
     setMsg(null);
@@ -122,22 +124,17 @@ export default function HistoryScreen({ onBack }) {
                 <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap' }}>
                   <thead>
                     <tr style={{ color: 'var(--ink-muted)' }}>
-                      {['거래일', '축종', '부위', 'kg', '등급', '도축장', '이력번호', '매입처'].map((h) => (
-                        <th key={h} style={{ padding: '4px 8px', borderBottom: '1px solid var(--hairline)', textAlign: 'left', fontWeight: 400 }}>{h}</th>
+                      {FIELDS.map(({ key, label }) => (
+                        <th key={key} style={{ padding: '4px 8px', borderBottom: '1px solid var(--hairline)', textAlign: 'left', fontWeight: 400 }}>{label}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {r.items.map((it) => (
                       <tr key={it.id}>
-                        <td style={{ padding: '4px 8px' }}>{it.trade_date}</td>
-                        <td style={{ padding: '4px 8px' }}>{it.meat_type}</td>
-                        <td style={{ padding: '4px 8px' }}>{it.cut_name}</td>
-                        <td style={{ padding: '4px 8px' }}>{it.weight_kg}</td>
-                        <td style={{ padding: '4px 8px' }}>{it.grade}</td>
-                        <td style={{ padding: '4px 8px' }}>{it.slaughterhouse}</td>
-                        <td style={{ padding: '4px 8px' }}>{it.trace_number}</td>
-                        <td style={{ padding: '4px 8px' }}>{it.supplier}</td>
+                        {FIELDS.map(({ key }) => (
+                          <td key={key} style={{ padding: '4px 8px' }}>{it[key]}</td>
+                        ))}
                       </tr>
                     ))}
                   </tbody>
@@ -152,16 +149,8 @@ export default function HistoryScreen({ onBack }) {
                 <button
                   onClick={() => handleResend(r.id)}
                   disabled={resending}
-                  style={{
-                    marginTop: 8,
-                    padding: '10px 20px',
-                    fontSize: 14,
-                    fontWeight: 700,
-                    color: '#fff',
-                    background: 'var(--accent)',
-                    border: 'none',
-                    borderRadius: 8,
-                  }}
+                  className="btn-accent"
+                  style={{ marginTop: 8, padding: '10px 20px', fontSize: 14 }}
                 >
                   {resending ? '전송 중...' : '시트에 재전송'}
                 </button>

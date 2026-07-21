@@ -14,23 +14,6 @@ const HEADER_ROW = [
 
 // Tab per trade month, e.g. "2026-07". Created (with header) on first use,
 // so the new month's tab appears automatically with its first statement.
-async function ensureMonthTab(spreadsheetId, title) {
-  const meta = await sheets.spreadsheets.get({ spreadsheetId });
-  const exists = meta.data.sheets.some((s) => s.properties.title === title);
-  if (exists) return;
-
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId,
-    requestBody: { requests: [{ addSheet: { properties: { title } } }] },
-  });
-  await sheets.spreadsheets.values.append({
-    spreadsheetId,
-    range: `'${title}'!A1`,
-    valueInputOption: 'RAW',
-    requestBody: { values: [HEADER_ROW] },
-  });
-}
-
 async function appendPurchaseRows(items) {
   const spreadsheetId = process.env.SHEET_ID_PURCHASE;
   const sorted = [...items].sort((a, b) => a.trade_date.localeCompare(b.trade_date));
@@ -53,8 +36,24 @@ async function appendPurchaseRows(items) {
     ]);
   }
 
+  const meta = await sheets.spreadsheets.get({ spreadsheetId });
+  const titles = new Set(meta.data.sheets.map((s) => s.properties.title));
+
   for (const [month, values] of byMonth) {
-    await ensureMonthTab(spreadsheetId, month);
+    if (!titles.has(month)) {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests: [{ addSheet: { properties: { title: month } } }] },
+      });
+      await sheets.spreadsheets.values.append({
+        spreadsheetId,
+        range: `'${month}'!A1`,
+        valueInputOption: 'RAW',
+        requestBody: { values: [HEADER_ROW] },
+      });
+      titles.add(month);
+    }
+
     await sheets.spreadsheets.values.append({
       spreadsheetId,
       range: `'${month}'!A1`,

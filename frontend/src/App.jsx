@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import HomeScreen from './pages/HomeScreen.jsx';
 import ReviewScreen from './pages/ReviewScreen.jsx';
 import HistoryScreen from './pages/HistoryScreen.jsx';
-import { listReceipts, getReceiptItems } from './api/receipts.js';
+import { listReceipts } from './api/receipts.js';
+import { todayStr, monthStr, localDateStr } from './dates.js';
 
 export default function App() {
   const [screen, setScreen] = useState('home');
@@ -10,15 +11,14 @@ export default function App() {
 
   useEffect(() => {
     async function restorePendingReceipt() {
-      const receipts = await listReceipts();
-      const today = new Date().toISOString().slice(0, 10);
+      const receipts = await listReceipts(monthStr(new Date()));
+      const today = todayStr();
       const pending = receipts.find(
-        (r) => !r.sheet_synced && r.created_at.slice(0, 10) === today
+        (r) => !r.sheet_synced && localDateStr(r.created_at) === today
       );
       if (!pending) return;
 
-      const { items } = await getReceiptItems(pending.id);
-      setActiveReceipt({ receipt: pending, items });
+      setActiveReceipt({ receipt: pending, items: pending.items });
       setScreen('review');
     }
 

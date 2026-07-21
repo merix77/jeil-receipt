@@ -1,7 +1,8 @@
 const sheets = require('../config/google');
+const { monthStr } = require('../utils/date');
+const { INSPECTOR_NAME } = require('../config/business');
 
 const TEMPLATE_TITLE = '위생점검표';
-const INSPECTOR_NAME = '노영곤';
 const ITEM_START_ROW = 6; // rows 6..21 = 16 inspection items
 const ITEM_END_ROW = 21;
 const ITEM_COUNT = ITEM_END_ROW - ITEM_START_ROW + 1;
@@ -17,11 +18,10 @@ function columnLetter(n) {
   return s;
 }
 
-async function ensureMonthTab(spreadsheetId, existingTitles, title, year, month) {
-  if (existingTitles.includes(title)) return;
+async function ensureMonthTab(spreadsheetId, sheetList, title, year, month) {
+  if (sheetList.some((s) => s.properties.title === title)) return;
 
-  const meta = await sheets.spreadsheets.get({ spreadsheetId });
-  const template = meta.data.sheets.find((s) => s.properties.title === TEMPLATE_TITLE);
+  const template = sheetList.find((s) => s.properties.title === TEMPLATE_TITLE);
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
     requestBody: {
@@ -77,27 +77,25 @@ async function fillEmptyDays(spreadsheetId, title, lastDay) {
 async function markHygieneChecks() {
   const spreadsheetId = process.env.SHEET_ID_HYGIENE_CHECK;
   const now = new Date();
-  const year = now.getFullYear();
-  const month = now.getMonth() + 1;
-  const day = now.getDate();
 
   const meta = await sheets.spreadsheets.get({ spreadsheetId });
-  const existingTitles = meta.data.sheets.map((s) => s.properties.title);
+  const sheetList = meta.data.sheets;
+  const existingTitles = sheetList.map((s) => s.properties.title);
 
   const result = [];
 
   // Previous month: only complete a tab that already exists (don't invent history).
-  const prev = new Date(year, month - 2, 1);
-  const prevTitle = `${prev.getFullYear()}-${String(prev.getMonth() + 1).padStart(2, '0')}`;
+  const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const prevTitle = monthStr(prev);
   if (existingTitles.includes(prevTitle)) {
     const prevLastDay = new Date(prev.getFullYear(), prev.getMonth() + 1, 0).getDate();
     const filled = await fillEmptyDays(spreadsheetId, prevTitle, prevLastDay);
     if (filled.length > 0) result.push({ month: prevTitle, days: filled });
   }
 
-  const title = `${year}-${String(month).padStart(2, '0')}`;
-  await ensureMonthTab(spreadsheetId, existingTitles, title, year, month);
-  const filled = await fillEmptyDays(spreadsheetId, title, day);
+  const title = monthStr(now);
+  await ensureMonthTab(spreadsheetId, sheetList, title, now.getFullYear(), now.getMonth() + 1);
+  const filled = await fillEmptyDays(spreadsheetId, title, now.getDate());
   if (filled.length > 0) result.push({ month: title, days: filled });
 
   return result;

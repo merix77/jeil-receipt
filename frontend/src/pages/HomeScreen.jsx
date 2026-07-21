@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react';
 import { createReceipt, listReceipts, autoHygieneCheck, registerEducation } from '../api/receipts.js';
 import { compressReceiptImage } from '../api/compressImage.js';
 import CameraCapture from '../components/CameraCapture.jsx';
+import { todayStr, monthStr, localDateStr } from '../dates.js';
+
+const HYGIENE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1_Ud__ZfAFF8xFhfMa-oWkfC0YSx6otrrSE5tdBGiFnY';
+const EDU_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1vVdyIGuYhGELd8OZHaSNyjGXqqOOapcXAk44kkJsUWM';
 
 const cardStyle = {
   flex: 1,
@@ -26,9 +30,9 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
   const [eduLoading, setEduLoading] = useState(false);
 
   useEffect(() => {
-    listReceipts().then((receipts) => {
-      const today = new Date().toISOString().slice(0, 10);
-      setTodayCount(receipts.filter((r) => r.created_at.slice(0, 10) === today).length);
+    listReceipts(monthStr(new Date())).then((receipts) => {
+      const today = todayStr();
+      setTodayCount(receipts.filter((r) => localDateStr(r.created_at) === today).length);
     });
   }, []);
 
@@ -87,18 +91,14 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
       <button
         onClick={() => setShowCamera(true)}
         disabled={loading}
+        className="btn-accent"
         style={{
           width: '100%',
           marginTop: 24,
           padding: '36px 16px',
           fontSize: 22,
-          fontWeight: 700,
           fontFamily: 'var(--font-title)',
-          color: '#fff',
-          background: 'var(--accent)',
-          border: 'none',
           borderRadius: 12,
-          boxShadow: 'none',
         }}
       >
         {loading ? '분석 중...' : '📷 거래명세서 촬영하기'}
@@ -148,7 +148,7 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
             marginTop: 12,
             padding: 12,
             border: '1px solid var(--accent)',
-            background: '#FBEAE7',
+            background: 'var(--accent-bg)',
             color: 'var(--accent)',
             borderRadius: 8,
           }}
@@ -180,20 +180,10 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
       </p>
 
       <div style={{ display: 'flex', gap: 16, paddingBottom: 24, fontSize: 13 }}>
-        <a
-          href="https://docs.google.com/spreadsheets/d/1_Ud__ZfAFF8xFhfMa-oWkfC0YSx6otrrSE5tdBGiFnY"
-          target="_blank"
-          rel="noreferrer"
-          style={{ color: 'var(--ink-muted)' }}
-        >
+        <a href={HYGIENE_SHEET_URL} target="_blank" rel="noreferrer" style={{ color: 'var(--ink-muted)' }}>
           위생점검표 시트 열기 ↗
         </a>
-        <a
-          href="https://docs.google.com/spreadsheets/d/1vVdyIGuYhGELd8OZHaSNyjGXqqOOapcXAk44kkJsUWM"
-          target="_blank"
-          rel="noreferrer"
-          style={{ color: 'var(--ink-muted)' }}
-        >
+        <a href={EDU_SHEET_URL} target="_blank" rel="noreferrer" style={{ color: 'var(--ink-muted)' }}>
           위생교육 시트 열기 ↗
         </a>
       </div>
