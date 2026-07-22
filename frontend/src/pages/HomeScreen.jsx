@@ -104,13 +104,14 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
         style={{
           width: '100%',
           marginTop: 24,
-          padding: '28px 16px',
-          fontSize: 21,
+          padding: '26px 12px',
+          fontSize: 18,
+          lineHeight: 1.35,
           fontFamily: 'var(--font-title)',
           borderRadius: 12,
         }}
       >
-        {loading && docType === 'purchase' ? '분석 중...' : '📷 매입 촬영하기'}
+        {loading && docType === 'purchase' ? '분석 중...' : '📷 거래내역서(매입) 촬영하기'}
       </button>
 
       <button
@@ -120,13 +121,14 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
         style={{
           width: '100%',
           marginTop: 10,
-          padding: '28px 16px',
-          fontSize: 21,
+          padding: '26px 12px',
+          fontSize: 18,
+          lineHeight: 1.35,
           fontFamily: 'var(--font-title)',
           borderRadius: 12,
         }}
       >
-        {loading && docType === 'sale' ? '분석 중...' : '📷 판매 촬영하기'}
+        {loading && docType === 'sale' ? '분석 중...' : '📷 영업자간거래내역서(판매) 촬영하기'}
       </button>
 
       <div
