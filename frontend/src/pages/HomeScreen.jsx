@@ -104,9 +104,9 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
         style={{
           width: '100%',
           marginTop: 24,
-          padding: '26px 12px',
-          fontSize: 18,
-          lineHeight: 1.35,
+          padding: '26px 8px',
+          fontSize: 15,
+          whiteSpace: 'nowrap',
           fontFamily: 'var(--font-title)',
           borderRadius: 12,
         }}
@@ -121,9 +121,9 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
         style={{
           width: '100%',
           marginTop: 10,
-          padding: '26px 12px',
-          fontSize: 18,
-          lineHeight: 1.35,
+          padding: '26px 8px',
+          fontSize: 15,
+          whiteSpace: 'nowrap',
           fontFamily: 'var(--font-title)',
           borderRadius: 12,
         }}
