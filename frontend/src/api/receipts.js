@@ -17,9 +17,10 @@ async function request(path, options = {}) {
   return body;
 }
 
-export async function createReceipt(imageFile) {
+export async function createReceipt(imageFile, docType = 'purchase') {
   const formData = new FormData();
   formData.append('image', imageFile);
+  formData.append('doc_type', docType);
   return (await request('/receipts', { method: 'POST', body: formData })).data;
 }
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { listReceipts, getReceiptImageUrl, confirmReceipt } from '../api/receipts.js';
 import StampMark from '../components/StampMark.jsx';
-import { FIELDS } from '../fields.js';
+import { fieldsFor, docTypeLabel } from '../fields.js';
 import { monthStr, localDateStr } from '../dates.js';
 
 function summarize(items) {
@@ -106,6 +106,19 @@ export default function HistoryScreen({ onBack }) {
           >
             <div>
               <div style={{ fontWeight: 700 }}>
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: r.doc_type === 'sale' ? 'var(--ink-muted)' : 'var(--accent)',
+                    border: `1px solid ${r.doc_type === 'sale' ? 'var(--ink-muted)' : 'var(--accent)'}`,
+                    borderRadius: 4,
+                    padding: '1px 5px',
+                    marginRight: 6,
+                  }}
+                >
+                  {docTypeLabel(r.doc_type)}
+                </span>
                 {localDateStr(r.created_at).slice(5).replace('-', '/')}{' '}
                 <span style={{ fontWeight: 400 }}>{r.items[0]?.supplier || ''}</span>
               </div>
@@ -130,7 +143,7 @@ export default function HistoryScreen({ onBack }) {
                 <table style={{ borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap' }}>
                   <thead>
                     <tr style={{ color: 'var(--ink-muted)' }}>
-                      {FIELDS.map(({ key, label }) => (
+                      {fieldsFor(r.doc_type).map(({ key, label }) => (
                         <th key={key} style={{ padding: '4px 8px', borderBottom: '1px solid var(--hairline)', textAlign: 'left', fontWeight: 400 }}>{label}</th>
                       ))}
                     </tr>
@@ -138,7 +151,7 @@ export default function HistoryScreen({ onBack }) {
                   <tbody>
                     {r.items.map((it) => (
                       <tr key={it.id}>
-                        {FIELDS.map(({ key }) => (
+                        {fieldsFor(r.doc_type).map(({ key }) => (
                           <td key={key} style={{ padding: '4px 8px' }}>{it[key]}</td>
                         ))}
                       </tr>

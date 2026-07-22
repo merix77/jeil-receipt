@@ -1,6 +1,6 @@
 const sheets = require('../config/google');
 
-const HEADER_ROW = [
+const PURCHASE_HEADER = [
   '거래년월일',
   '식육·포장육의 종류',
   '물량(kg)',
@@ -12,10 +12,46 @@ const HEADER_ROW = [
   '매입처',
 ];
 
+const SALE_HEADER = ['판매년월일', '판매처', '판매부위', '판매량', '비고'];
+
+// pg returns NUMERIC as a string; append as a number so the sheet cell is
+// numeric and SUM() over the 물량/판매량 column works.
+const num = (v) => (v == null ? '' : Number(v));
+
+const DOC_TYPES = {
+  purchase: {
+    spreadsheetIdEnv: 'SHEET_ID_PURCHASE',
+    header: PURCHASE_HEADER,
+    toRow: (item) => [
+      item.trade_date,
+      item.meat_type,
+      num(item.weight_kg),
+      item.origin,
+      item.cut_name,
+      item.grade,
+      item.slaughterhouse,
+      item.trace_number,
+      item.supplier,
+    ],
+  },
+  sale: {
+    spreadsheetIdEnv: 'SHEET_ID_SALES',
+    header: SALE_HEADER,
+    toRow: (item) => [
+      item.trade_date,
+      item.supplier,
+      item.cut_name,
+      num(item.weight_kg),
+      item.note,
+    ],
+  },
+};
+
 // Tab per trade month, e.g. "2026-07". Created (with header) on first use,
 // so the new month's tab appears automatically with its first statement.
-async function appendPurchaseRows(items) {
-  const spreadsheetId = process.env.SHEET_ID_PURCHASE;
+async function appendRows(docType, items) {
+  const spec = DOC_TYPES[docType];
+  const spreadsheetId = process.env[spec.spreadsheetIdEnv];
   const sorted = [...items].sort((a, b) => a.trade_date.localeCompare(b.trade_date));
 
   // Group rows by trade month so each lands on its own month tab.
@@ -23,19 +59,7 @@ async function appendPurchaseRows(items) {
   for (const item of sorted) {
     const month = item.trade_date.slice(0, 7);
     if (!byMonth.has(month)) byMonth.set(month, []);
-    byMonth.get(month).push([
-      item.trade_date,
-      item.meat_type,
-      // pg returns NUMERIC as a string; append as a number so the sheet cell
-      // is numeric and SUM() over the 물량(kg) column works.
-      item.weight_kg == null ? '' : Number(item.weight_kg),
-      item.origin,
-      item.cut_name,
-      item.grade,
-      item.slaughterhouse,
-      item.trace_number,
-      item.supplier,
-    ]);
+    byMonth.get(month).push(spec.toRow(item));
   }
 
   const meta = await sheets.spreadsheets.get({ spreadsheetId });
@@ -51,7 +75,7 @@ async function appendPurchaseRows(items) {
         spreadsheetId,
         range: `'${month}'!A1`,
         valueInputOption: 'RAW',
-        requestBody: { values: [HEADER_ROW] },
+        requestBody: { values: [spec.header] },
       });
       titles.add(month);
     }
@@ -65,4 +89,4 @@ async function appendPurchaseRows(items) {
   }
 }
 
-module.exports = { appendPurchaseRows };
+module.exports = { appendRows };

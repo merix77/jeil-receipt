@@ -3,6 +3,26 @@ const { GoogleGenAI } = require('@google/genai');
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+const SALE_PROMPT = `다음은 축산물 【영업자간 거래내역서】(판매분) 사진입니다.
+아래 JSON 배열 형식으로만 응답하세요. 설명, 코드블록 표시, 다른 텍스트는 절대 포함하지 마세요.
+
+[
+  {
+    "trade_date": "YYYY-MM-DD",
+    "supplier": "판매처 상호",
+    "cut_name": "판매 부위",
+    "weight_kg": "판매량 숫자 문자열",
+    "note": "비고란 내용"
+  }
+]
+
+규칙:
+- 표의 각 행(판매 년월일 / 판매처 / 판매 부위 / 판매량 / 비고)이 한 항목
+- 내용이 비어있는 행은 제외하고, 실제로 기재된 행만 추출
+- 값을 찾을 수 없으면 빈 문자열("")
+- 읽기 어려운 글자는 추정값 뒤에 "?" 표시
+- 반드시 유효한 JSON 배열만 응답`;
+
 const EXTRACTION_PROMPT = `다음은 축산물 거래명세서(또는 거래내역서) 사진입니다.
 아래 JSON 배열 형식으로만 응답하세요. 설명, 코드블록 표시, 다른 텍스트는 절대 포함하지 마세요.
 
@@ -43,7 +63,7 @@ function ocrError(status, code, message) {
 
 // Provider-specific error semantics stay in this file so a future model swap
 // (e.g. Gemini → Claude) only touches the OCR service.
-async function extractReceiptItems(imagePath) {
+async function extractReceiptItems(imagePath, docType = 'purchase') {
   const imageBase64 = fs.readFileSync(imagePath, { encoding: 'base64' });
 
   let response;
@@ -55,7 +75,7 @@ async function extractReceiptItems(imagePath) {
           role: 'user',
           parts: [
             { inlineData: { mimeType: mediaTypeFromExt(imagePath), data: imageBase64 } },
-            { text: EXTRACTION_PROMPT },
+            { text: docType === 'sale' ? SALE_PROMPT : EXTRACTION_PROMPT },
           ],
         },
       ],

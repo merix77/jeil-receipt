@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import ReceiptItemRow from '../components/ReceiptItemRow.jsx';
 import { updateReceiptItems, confirmReceipt } from '../api/receipts.js';
+import { fieldsFor, docTypeLabel } from '../fields.js';
 
 export default function ReviewScreen({ receipt, items: initialItems, onDone }) {
   const [items, setItems] = useState(initialItems);
@@ -37,9 +38,19 @@ export default function ReviewScreen({ receipt, items: initialItems, onDone }) {
 
   return (
     <div style={{ padding: '0 16px 80px' }}>
-      <h2>내용 확인</h2>
+      <h2>
+        내용 확인{' '}
+        <span style={{ fontSize: 14, color: 'var(--accent)' }}>
+          {docTypeLabel(receipt.doc_type)}
+        </span>
+      </h2>
       {items.map((item, i) => (
-        <ReceiptItemRow key={item.id} item={item} onChange={(updated) => updateItem(i, updated)} />
+        <ReceiptItemRow
+          key={item.id}
+          item={item}
+          fields={fieldsFor(receipt.doc_type)}
+          onChange={(updated) => updateItem(i, updated)}
+        />
       ))}
 
       {error && <p style={{ color: 'var(--accent)' }}>{error}</p>}

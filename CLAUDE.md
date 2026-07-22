@@ -39,6 +39,10 @@
 
 매입 시트 컬럼 순서: 거래년월일 / 식육·포장육의 종류 / 물량(kg) / 원산지 / 부위명칭 / 등급 / 도축장명 / 이력번호 / 매입처
 
+판매 시트 컬럼 순서: 판매년월일 / 판매처 / 판매부위 / 판매량 / 비고
+
+두 시트 모두 **거래일자 기준 `YYYY-MM` 월별 탭**에 기록(없으면 헤더와 함께 자동 생성)
+
 ## DB 스키마 (영문 스네이크케이스)
 
 ```sql
@@ -47,6 +51,7 @@ CREATE TABLE receipts (
   created_at      TIMESTAMP DEFAULT NOW(),
   updated_at      TIMESTAMP DEFAULT NOW(),
   is_deleted      BOOLEAN DEFAULT FALSE,
+  doc_type        VARCHAR(10) NOT NULL DEFAULT 'purchase', -- 'purchase'(매입분) | 'sale'(판매분)
   image_url       TEXT NOT NULL,
   ocr_raw_json    JSONB,
   sheet_synced    BOOLEAN DEFAULT FALSE,
@@ -69,12 +74,17 @@ CREATE TABLE receipt_items (
   slaughterhouse    VARCHAR(100),
   trace_number      VARCHAR(50),
   supplier          VARCHAR(100),
+  note              TEXT,
   is_uncertain      BOOLEAN DEFAULT FALSE,
   uncertain_fields  TEXT[]
 );
 ```
 
-## OCR 추출 프롬프트 (매입 기준, 필요시 판매/위생 문서용으로 변형)
+**판매분(`doc_type='sale'`) 필드 대응** — 컬럼을 새로 만들지 않고 매입 컬럼을 재사용:
+판매년월일 → `trade_date` / 판매처 → `supplier` / 판매부위 → `cut_name` / 판매량 → `weight_kg` / 비고 → `note`
+(매입분에만 있는 축종·원산지·등급·도축장명·이력번호는 판매분에서 NULL)
+
+## OCR 추출 프롬프트 (매입 기준, 판매분 프롬프트는 `services/ocrService.js`의 `SALE_PROMPT`)
 
 ```
 다음은 축산물 거래명세서(또는 거래내역서) 사진입니다.
@@ -102,11 +112,14 @@ CREATE TABLE receipt_items (
 - 반드시 유효한 JSON 배열만 응답
 ```
 
-## API 흐름
-1. `POST /receipts` — 이미지 업로드 → S3/로컬 저장 → `receipts` row 생성 → Claude Vision 호출 → `receipt_items` 저장 → 추출 결과 응답(확신도 낮은 필드 flag 포함)
+## API 흐름 (전부 `x-api-key` 헤더 필요)
+1. `POST /receipts` — 이미지 + `doc_type`(purchase|sale) 업로드 → 로컬 저장 → OCR 호출 → 검증(빈 결과·중복) 통과 시 `receipts`+`receipt_items` 트랜잭션 저장 → 추출 결과 응답(확신도 낮은 필드 flag 포함)
 2. `PATCH /receipts/:id/items` — 사용자 수정 반영
-3. `POST /receipts/:id/confirm` — 날짜순 정렬 → Google Sheets API append → 성공 시 `sheet_synced=true`, 실패 시 `sync_error` 기록
-4. `GET /receipts` — 이력 조회
+3. `POST /receipts/:id/confirm` — 날짜순 정렬 → `doc_type`에 맞는 시트의 월별 탭에 append → 성공 시 `sheet_synced=true`, 실패 시 `sync_error` 기록 (이미 반영된 건은 재전송 차단)
+4. `GET /receipts?month=YYYY-MM` — 이력 조회 (항목 포함, month 생략 가능)
+5. `GET /receipts/:id/image` — 원본 사진
+6. `POST /hygiene/check` — 위생점검표 자동 O 등록 (미등록일 백필)
+7. `POST /hygiene/education` — 위생교육 결과서 생성 (누락일 백필)
 
 표준 응답: `{ success, data, message }` / `{ success: false, error, code }`
 

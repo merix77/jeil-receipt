@@ -24,6 +24,7 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showCamera, setShowCamera] = useState(false);
+  const [docType, setDocType] = useState('purchase');
   const [hygieneMsg, setHygieneMsg] = useState(null);
   const [hygieneLoading, setHygieneLoading] = useState(false);
   const [eduMsg, setEduMsg] = useState(null);
@@ -38,12 +39,12 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
       .catch(console.error);
   }, []);
 
-  async function uploadFile(file) {
+  async function uploadFile(file, type) {
     setLoading(true);
     setError(null);
     try {
       const compressed = await compressReceiptImage(file);
-      const { receipt, items } = await createReceipt(compressed);
+      const { receipt, items } = await createReceipt(compressed, type);
       onExtracted(receipt, items);
     } catch (err) {
       setError(err.message);
@@ -52,14 +53,20 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
     }
   }
 
+  function openCamera(type) {
+    setDocType(type);
+    setError(null);
+    setShowCamera(true);
+  }
+
   function handleCapture(file) {
     setShowCamera(false);
-    uploadFile(file);
+    uploadFile(file, docType);
   }
 
   function handleFileChange(e) {
     const file = e.target.files[0];
-    if (file) uploadFile(file);
+    if (file) uploadFile(file, docType);
   }
 
   async function handleHygieneCheck() {
@@ -91,40 +98,61 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
   return (
     <div style={{ padding: '0 16px' }}>
       <button
-        onClick={() => setShowCamera(true)}
+        onClick={() => openCamera('purchase')}
         disabled={loading}
         className="btn-accent"
         style={{
           width: '100%',
           marginTop: 24,
-          padding: '36px 16px',
-          fontSize: 22,
+          padding: '28px 16px',
+          fontSize: 21,
           fontFamily: 'var(--font-title)',
           borderRadius: 12,
         }}
       >
-        {loading ? '분석 중...' : '📷 거래명세서 촬영하기'}
+        {loading && docType === 'purchase' ? '분석 중...' : '📷 매입 촬영하기'}
       </button>
 
-      <label
+      <button
+        onClick={() => openCamera('sale')}
+        disabled={loading}
+        className="btn-accent"
         style={{
-          display: 'block',
-          textAlign: 'center',
+          width: '100%',
+          marginTop: 10,
+          padding: '28px 16px',
+          fontSize: 21,
+          fontFamily: 'var(--font-title)',
+          borderRadius: 12,
+        }}
+      >
+        {loading && docType === 'sale' ? '분석 중...' : '📷 판매 촬영하기'}
+      </button>
+
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'center',
+          gap: 16,
           marginTop: 10,
           color: 'var(--ink-muted)',
           fontSize: 14,
-          textDecoration: 'underline',
         }}
       >
-        갤러리에서 선택
-        <input
-          type="file"
-          accept="image/*"
-          onChange={handleFileChange}
-          disabled={loading}
-          style={{ display: 'none' }}
-        />
-      </label>
+        {['purchase', 'sale'].map((type) => (
+          <label key={type} style={{ textDecoration: 'underline' }}>
+            {type === 'purchase' ? '매입' : '판매'} 갤러리에서 선택
+            <input
+              type="file"
+              accept="image/*"
+              onClick={() => setDocType(type)}
+              onChange={handleFileChange}
+              disabled={loading}
+              style={{ display: 'none' }}
+            />
+          </label>
+        ))}
+      </div>
 
       <button
         onClick={onOpenHistory}
@@ -141,7 +169,7 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
           borderRadius: 12,
         }}
       >
-        🔍 거래명세서 조회하기
+        🔍 거래내역 조회하기
       </button>
 
       {error && (
