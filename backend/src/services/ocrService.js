@@ -3,8 +3,9 @@ const { GoogleGenAI } = require('@google/genai');
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// 무료 티어 할당량은 모델별로 따로 잡히므로, 한도 소진 시 GEMINI_MODEL로 교체 가능
-const MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+// 첫 모델의 무료 할당량이 소진되면 뒤 모델로 자동 대체 (할당량은 모델별로 잡힘).
+// GEMINI_MODEL로 우선 모델을 바꿀 수 있음.
+const MODELS = [process.env.GEMINI_MODEL || 'gemini-2.5-flash', 'gemini-flash-latest'];
 
 // 판매분은 세금계산서를 촬영해 영업자간 거래내역서(판매) 시트에 기록한다.
 // 우리(제일축산)가 공급자이므로 '판매처'는 공급받는자 상호.
@@ -75,29 +76,37 @@ function ocrError(status, code, message) {
 async function extractReceiptItems(imagePath, docType = 'purchase') {
   const imageBase64 = fs.readFileSync(imagePath, { encoding: 'base64' });
 
-  let response;
-  try {
-    response = await genAI.models.generateContent({
-      model: MODEL,
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { inlineData: { mimeType: mediaTypeFromExt(imagePath), data: imageBase64 } },
-            { text: docType === 'sale' ? SALE_PROMPT : EXTRACTION_PROMPT },
-          ],
-        },
-      ],
-      config: {
-        responseMimeType: 'application/json',
+  const request = {
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          { inlineData: { mimeType: mediaTypeFromExt(imagePath), data: imageBase64 } },
+          { text: docType === 'sale' ? SALE_PROMPT : EXTRACTION_PROMPT },
+        ],
       },
-    });
-  } catch (err) {
-    console.error(err);
-    if (String(err.message).includes('RESOURCE_EXHAUSTED')) {
-      throw ocrError(429, 'OCR_QUOTA_EXCEEDED', '오늘의 무료 OCR 사용량(20건)을 모두 사용했습니다. 한도는 한국시간 오후 4~5시경 초기화됩니다.');
+    ],
+    config: { responseMimeType: 'application/json' },
+  };
+
+  // 무료 티어 할당량은 모델별로 따로 잡히므로, 소진되면 다음 모델로 넘어간다.
+  let response;
+  for (const [i, model] of MODELS.entries()) {
+    try {
+      response = await genAI.models.generateContent({ model, ...request });
+      if (i > 0) console.warn(`OCR: ${MODELS[0]} 할당량 소진 → ${model} 사용`);
+      break;
+    } catch (err) {
+      const exhausted = String(err.message).includes('RESOURCE_EXHAUSTED');
+      if (!exhausted) {
+        console.error(err);
+        throw ocrError(502, 'OCR_FAILED', 'OCR 인식에 실패했습니다. 다시 시도해주세요.');
+      }
+      if (i === MODELS.length - 1) {
+        console.error('모든 모델의 무료 할당량 소진:', err.message);
+        throw ocrError(429, 'OCR_QUOTA_EXCEEDED', '오늘의 무료 OCR 사용량을 모두 사용했습니다. 한도는 한국시간 오후 4~5시경 초기화됩니다.');
+      }
     }
-    throw ocrError(502, 'OCR_FAILED', 'OCR 인식에 실패했습니다. 다시 시도해주세요.');
   }
 
   let parsed;
