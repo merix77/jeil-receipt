@@ -32,7 +32,7 @@
 ## 대상 구글시트 (4개, 서비스 계정 편집자 공유 완료)
 | 시트 | 스프레드시트 ID |
 |---|---|
-| 매입 (거래내역서 매입분) | `1IjsAKLfwiGti0KRZEsf_YYNoM0iKfIR-J1pcNoIiWYY` |
+| 매입 (거래내역서 매입분) | `1IjsAKLfwiGti0KRZEsf_YYNoM0iKflR-J1pcNoIiWYY` |
 | 판매 (영업자간 거래내역서) | `121YEYosIYgtdzpJAuAyRLEOqRS5PKEhl-1hxRO7oJjk` |
 | 위생점검표 (자체위생관리기준 점검표) | `1_Ud__ZfAFF8xFhfMa-oWkfC0YSx6otrrSE5tdBGiFnY` |
 | 위생교육결과서 (종업원 위생교육 실시 결과서) | `1vVdyIGuYhGELd8OZHaSNyjGXqqOOapcXAk44kkJsUWM` |
