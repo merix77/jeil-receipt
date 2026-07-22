@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { listReceipts, getReceiptImageUrl, confirmReceipt } from '../api/receipts.js';
 import StampMark from '../components/StampMark.jsx';
 import { FIELDS } from '../fields.js';
@@ -31,6 +31,9 @@ export default function HistoryScreen({ onBack }) {
   // photo (~1.5MB) stays in memory for the whole session.
   useEffect(() => () => { if (imageUrl) URL.revokeObjectURL(imageUrl); }, [imageUrl]);
 
+  const openIdRef = useRef(null);
+  useEffect(() => { openIdRef.current = openId; }, [openId]);
+
   function shiftMonth(delta) {
     const [y, m] = month.split('-').map(Number);
     setMonth(monthStr(new Date(y, m - 1 + delta, 1)));
@@ -49,7 +52,10 @@ export default function HistoryScreen({ onBack }) {
     setOpenId(receipt.id);
     setImageUrl(null);
     try {
-      setImageUrl(await getReceiptImageUrl(receipt.id));
+      const url = await getReceiptImageUrl(receipt.id);
+      // A slow fetch must not paint its photo onto whichever row is open now.
+      if (openIdRef.current === receipt.id) setImageUrl(url);
+      else URL.revokeObjectURL(url);
     } catch {
       setImageUrl(null);
     }
