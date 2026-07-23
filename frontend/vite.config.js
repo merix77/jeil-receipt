@@ -11,6 +11,8 @@ export default defineConfig({
     basicSsl(),
     VitePWA({
       registerType: 'autoUpdate',
+      // public/ 아이콘을 프리캐시에 포함시켜 오프라인에서도 아이콘이 뜨게 함
+      includeAssets: ['icon-192.png', 'icon-512.png', 'icon-512-maskable.png'],
       manifest: {
         name: '제일축산 PREMIUM 거래내역서',
         short_name: '거래내역서',
@@ -18,7 +20,11 @@ export default defineConfig({
         display: 'standalone',
         background_color: '#FAF7F1',
         theme_color: '#AF3226',
-        icons: [],
+        icons: [
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
       },
     }),
   ],
