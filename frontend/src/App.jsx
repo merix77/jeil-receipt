@@ -40,7 +40,7 @@ export default function App() {
       <header
         style={{
           padding: '16px',
-          borderBottom: '1px solid var(--hairline)',
+          background: 'var(--primary)',
           textAlign: 'center',
         }}
         onClick={goHome}
@@ -55,7 +55,7 @@ export default function App() {
         >
           제일축산 PREMIUM
         </h1>
-        <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--ink-muted)' }}>
+        <p style={{ margin: '4px 0 0', fontSize: 12, color: 'rgba(255,255,255,0.85)' }}>
           거래명세 · 위생관리 장부
         </p>
       </header>

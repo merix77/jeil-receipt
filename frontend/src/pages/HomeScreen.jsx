@@ -12,9 +12,9 @@ const cardStyle = {
   padding: '16px 8px',
   fontSize: 15,
   fontWeight: 700,
-  color: 'var(--accent)',
+  color: 'var(--primary)',
   background: 'transparent',
-  border: '1.5px solid var(--accent)',
+  border: '1.5px solid var(--primary)',
   borderRadius: 10,
   lineHeight: 1.4,
 };
@@ -165,9 +165,9 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
           fontSize: 17,
           fontWeight: 700,
           fontFamily: 'var(--font-title)',
-          color: 'var(--accent)',
+          color: 'var(--primary)',
           background: 'transparent',
-          border: '2px solid var(--accent)',
+          border: '2px solid var(--primary)',
           borderRadius: 12,
         }}
       >
@@ -179,9 +179,9 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
           style={{
             marginTop: 12,
             padding: 12,
-            border: '1px solid var(--accent)',
+            border: '1px solid var(--warn)',
             background: 'var(--accent-bg)',
-            color: 'var(--accent)',
+            color: 'var(--warn)',
             borderRadius: 8,
           }}
         >

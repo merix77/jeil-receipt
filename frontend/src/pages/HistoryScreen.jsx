@@ -87,11 +87,11 @@ export default function HistoryScreen({ onBack }) {
       </button>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '12px 0' }}>
-        <button onClick={() => shiftMonth(-1)} style={{ fontSize: 20, background: 'transparent', border: 'none', color: 'var(--accent)', padding: '4px 12px' }}>
+        <button onClick={() => shiftMonth(-1)} style={{ fontSize: 20, background: 'transparent', border: 'none', color: 'var(--primary)', padding: '4px 12px' }}>
           ‹
         </button>
         <h2 style={{ margin: 0, fontSize: 18 }}>{year}년 {Number(mon)}월 거래 조회</h2>
-        <button onClick={() => shiftMonth(1)} style={{ fontSize: 20, background: 'transparent', border: 'none', color: 'var(--accent)', padding: '4px 12px' }}>
+        <button onClick={() => shiftMonth(1)} style={{ fontSize: 20, background: 'transparent', border: 'none', color: 'var(--primary)', padding: '4px 12px' }}>
           ›
         </button>
       </div>
@@ -110,8 +110,8 @@ export default function HistoryScreen({ onBack }) {
                   style={{
                     fontSize: 11,
                     fontWeight: 700,
-                    color: r.doc_type === 'sale' ? 'var(--ink-muted)' : 'var(--accent)',
-                    border: `1px solid ${r.doc_type === 'sale' ? 'var(--ink-muted)' : 'var(--accent)'}`,
+                    color: r.doc_type === 'sale' ? 'var(--ink-muted)' : 'var(--primary)',
+                    border: `1px solid ${r.doc_type === 'sale' ? 'var(--ink-muted)' : 'var(--primary)'}`,
                     borderRadius: 4,
                     padding: '1px 5px',
                     marginRight: 6,
@@ -127,7 +127,7 @@ export default function HistoryScreen({ onBack }) {
             {r.sheet_synced ? (
               <StampMark />
             ) : (
-              <span style={{ fontSize: 13, color: 'var(--accent)' }}>미반영</span>
+              <span style={{ fontSize: 13, color: 'var(--warn)' }}>미반영</span>
             )}
           </div>
 
@@ -161,7 +161,7 @@ export default function HistoryScreen({ onBack }) {
               </div>
 
               {r.sync_error && (
-                <p style={{ fontSize: 13, color: 'var(--accent)', marginTop: 8 }}>전송 오류: {r.sync_error}</p>
+                <p style={{ fontSize: 13, color: 'var(--warn)', marginTop: 8 }}>전송 오류: {r.sync_error}</p>
               )}
 
               {!r.sheet_synced && (

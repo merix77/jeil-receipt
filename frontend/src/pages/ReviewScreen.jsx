@@ -53,7 +53,7 @@ export default function ReviewScreen({ receipt, items: initialItems, onDone }) {
         />
       ))}
 
-      {error && <p style={{ color: 'var(--accent)' }}>{error}</p>}
+      {error && <p style={{ color: 'var(--warn)' }}>{error}</p>}
 
       <button
         onClick={handleConfirm}

@@ -19,11 +19,11 @@ export default function ReceiptItemRow({ item, fields, onChange }) {
               onChange={(e) => onChange({ ...item, [key]: e.target.value })}
               style={{
                 flex: 1,
-                border: uncertain ? '2px solid var(--accent)' : '1px solid var(--hairline)',
+                border: uncertain ? '2px solid var(--warn)' : '1px solid var(--hairline)',
                 background: uncertain ? 'var(--accent-bg)' : 'transparent',
               }}
             />
-            {uncertain && <span style={{ color: 'var(--accent)' }}>원본 대조 필요</span>}
+            {uncertain && <span style={{ color: 'var(--warn)' }}>원본 대조 필요</span>}
           </div>
         );
       })}

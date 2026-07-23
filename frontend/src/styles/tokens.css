@@ -1,11 +1,13 @@
 :root {
-  --paper: #FAF7F1;
-  --paper-alt: #F1ECE1;
+  --paper: #E6F4EE;      /* 페이지 배경 — 연한 민트 */
+  --paper-alt: #B7E7D7;  /* 카드·헤더 등 강조 표면 — 민트 */
   --ink: #2B2724;
-  --ink-muted: #8A8071;
-  --accent: #AF3226;
-  --accent-bg: #FBEAE7;
-  --hairline: #DDD5C7;
+  --ink-muted: #5F6E68;
+  --primary: #3F8C76;    /* 메인 버튼(초록) */
+  --accent: #E6B247;     /* 강조 글자·링크(골드) */
+  --accent-bg: #FBEED1;  /* 주의 강조 배경(연한 골드) */
+  --warn: #B26A1E;       /* 경고·오류·미반영 (가독성 위해 짙은 앰버) */
+  --hairline: #A9D6C6;   /* 구분선 — 민트 톤 */
 
   --font-title: 'Noto Serif KR', serif;
   --font-body: 'Noto Sans KR', sans-serif;

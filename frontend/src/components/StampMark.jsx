@@ -3,8 +3,8 @@ export default function StampMark() {
     <span
       style={{
         display: 'inline-block',
-        border: '2px solid var(--accent)',
-        color: 'var(--accent)',
+        border: '2px solid var(--primary)',
+        color: 'var(--primary)',
         borderRadius: '50%',
         width: 28,
         height: 28,
