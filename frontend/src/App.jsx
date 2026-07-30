@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import HomeScreen from './pages/HomeScreen.jsx';
 import ReviewScreen from './pages/ReviewScreen.jsx';
 import HistoryScreen from './pages/HistoryScreen.jsx';
+import YieldScreen from './pages/YieldScreen.jsx';
 import { listReceipts } from './api/receipts.js';
 import { todayStr, monthStr, localDateStr } from './dates.js';
 
@@ -62,7 +63,11 @@ export default function App() {
       </header>
 
       {screen === 'home' && (
-        <HomeScreen onExtracted={goToReview} onOpenHistory={() => setScreen('history')} />
+        <HomeScreen
+          onExtracted={goToReview}
+          onOpenHistory={() => setScreen('history')}
+          onOpenYield={() => setScreen('yield')}
+        />
       )}
       {screen === 'review' && activeReceipt && (
         <ReviewScreen
@@ -73,6 +78,7 @@ export default function App() {
         />
       )}
       {screen === 'history' && <HistoryScreen onBack={goHome} />}
+      {screen === 'yield' && <YieldScreen onBack={goHome} />}
     </div>
   );
 }

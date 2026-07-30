@@ -19,7 +19,7 @@ const cardStyle = {
   lineHeight: 1.4,
 };
 
-export default function HomeScreen({ onExtracted, onOpenHistory }) {
+export default function HomeScreen({ onExtracted, onOpenHistory, onOpenYield }) {
   const [todayCount, setTodayCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -204,6 +204,12 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
 
       {hygieneMsg && <p style={{ marginTop: 8, color: 'var(--ink-muted)', fontSize: 14 }}>{hygieneMsg}</p>}
       {eduMsg && <p style={{ marginTop: 8, color: 'var(--ink-muted)', fontSize: 14 }}>{eduMsg}</p>}
+
+      <button onClick={onOpenYield} style={{ ...cardStyle, width: '100%', marginTop: 10 }}>
+        📊
+        <br />
+        수율표
+      </button>
 
       <hr style={{ border: 'none', borderTop: '1px solid var(--hairline)', margin: '24px 0 0' }} />
 
