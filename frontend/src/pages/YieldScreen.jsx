@@ -69,9 +69,11 @@ export default function YieldScreen({ onBack }) {
         <span style={{ fontSize: 14, color: 'var(--ink-muted)' }}>· 마리 등록 (1/3)</span>
       </h2>
 
-      {step !== 1 ? (
+      {step > 1 && (
         <p style={{ marginTop: 24, color: 'var(--ink-muted)' }}>부위 입력 단계 — 준비 중</p>
-      ) : (
+      )}
+
+      {step === 1 && (
         <>
           <div
             style={{
@@ -132,3 +134,4 @@ export default function YieldScreen({ onBack }) {
     </div>
   );
 }
+
