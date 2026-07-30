@@ -1,6 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { todayStr } from '../dates.js';
 import { YIELD_PARTS, FIXED_PART_REVENUE } from '../yieldParts.js';
+import { createYield, confirmYield } from '../api/receipts.js';
+
+const won = (n) => `${Math.round(n).toLocaleString()}원`;
 
 const STEP_LABELS = { 1: '마리 등록', 2: '부위 입력', 3: '결과 확인' };
 
@@ -51,6 +54,12 @@ export default function YieldScreen({ onBack }) {
   const [fixedDone, setFixedDone] = useState({}); // { [부위명]: true } (등뼈·미니족)
   const [openPart, setOpenPart] = useState(null);
 
+  // 3단계 · 결과 확인 / 시트 반영
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [done, setDone] = useState(false);
+  const savedIdRef = useRef(null); // 반영 중 실패 후 재시도 시 중복 생성 방지
+
   function handleNext() {
     if (!(Number(totalWeight) > 0)) {
       setError('총중량을 숫자로 입력해주세요.');
@@ -75,6 +84,55 @@ export default function YieldScreen({ onBack }) {
   };
   // 총매출액 = 마진 포함 부위(1~10)만 합산. 등뼈·미니족 제외.
   const totalRevenue = YIELD_PARTS.filter((p) => p.marginIncluded).reduce((s, p) => s + revenueOf(p), 0);
+  const purchaseNum = Number(totalPurchase) || 0;
+  const marginAmount = totalRevenue - purchaseNum;
+  const marginRate = purchaseNum > 0 ? Math.round((marginAmount / purchaseNum) * 1000) / 10 : 0;
+
+  // 시트에 기록될 부위(입력된 마진부위 + 등뼈·미니족 고정 5,000)
+  const summaryRows = YIELD_PARTS.filter((p) => !p.marginIncluded || revenueOf(p) > 0).map((p) =>
+    p.marginIncluded
+      ? { name: p.name, weight: partValues[p.name].weight, revenue: revenueOf(p) }
+      : { name: p.name, weight: null, revenue: FIXED_PART_REVENUE }
+  );
+
+  async function handleConfirm() {
+    setSubmitting(true);
+    setSubmitError(null);
+    try {
+      // 실패 후 재시도 시엔 이미 만든 측정을 그대로 confirm (중복 저장 방지)
+      if (savedIdRef.current == null) {
+        const parts = YIELD_PARTS.filter((p) => p.marginIncluded)
+          .map((p) => ({ name: p.name, v: partValues[p.name] }))
+          .filter(({ v }) => v && (v.weight !== '' || v.price !== ''))
+          .map(({ name, v }) => ({
+            part_name: name,
+            weight_kg: v.weight === '' ? null : v.weight,
+            unit_price: v.price === '' ? null : v.price,
+          }));
+        const { measurement } = await createYield({
+          measured_date: measuredDate,
+          price_per_kg: pricePerKg === '' ? null : pricePerKg,
+          total_weight_kg: totalWeight,
+          total_purchase_price: totalPurchase,
+          parts,
+        });
+        savedIdRef.current = measurement.id;
+      }
+      await confirmYield(savedIdRef.current);
+      setDone(true);
+    } catch (err) {
+      setSubmitError(err.message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function backToStep2() {
+    // 2단계로 돌아가 값을 고치면 새 측정으로 다시 저장해야 하므로 저장 id 무효화
+    savedIdRef.current = null;
+    setSubmitError(null);
+    setStep(2);
+  }
 
   function tapPart(p) {
     if (p.marginIncluded) {
@@ -238,7 +296,138 @@ export default function YieldScreen({ onBack }) {
         </>
       )}
 
-      {step === 3 && <p style={{ marginTop: 24, color: 'var(--ink-muted)' }}>결과 확인 단계 — 준비 중</p>}
+      {step === 3 && !done && (
+        <>
+          <div
+            style={{
+              marginTop: 18,
+              padding: '18px 16px',
+              background: 'var(--primary)',
+              borderRadius: 12,
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>총매출액</div>
+            <div style={{ fontSize: 30, fontWeight: 700, fontFamily: 'var(--font-title)', color: 'var(--accent)' }}>
+              {won(totalRevenue)}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+            <div style={{ flex: 1, padding: '14px 8px', border: '1.5px solid var(--hairline)', borderRadius: 10, textAlign: 'center' }}>
+              <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>마진금액</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: marginAmount < 0 ? 'var(--warn)' : 'var(--primary)' }}>
+                {won(marginAmount)}
+              </div>
+            </div>
+            <div style={{ flex: 1, padding: '14px 8px', border: '1.5px solid var(--hairline)', borderRadius: 10, textAlign: 'center' }}>
+              <div style={{ fontSize: 12, color: 'var(--ink-muted)' }}>마진율</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: marginAmount < 0 ? 'var(--warn)' : 'var(--primary)' }}>
+                {marginRate}%
+              </div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 18 }}>
+            <div style={{ fontSize: 13, color: 'var(--ink-muted)', marginBottom: 4 }}>입력한 부위</div>
+            {summaryRows.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--ink-muted)' }}>입력한 부위가 없습니다.</p>
+            ) : (
+              summaryRows.map((r) => (
+                <div
+                  key={r.name}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    padding: '9px 0',
+                    borderBottom: '1px solid var(--hairline)',
+                    fontSize: 14,
+                  }}
+                >
+                  <span style={{ fontWeight: 700 }}>{r.name}</span>
+                  <span style={{ color: 'var(--ink-muted)' }}>
+                    {r.weight != null ? `${r.weight}kg · ` : ''}
+                    {won(r.revenue)}
+                  </span>
+                </div>
+              ))
+            )}
+          </div>
+
+          {submitError && (
+            <div
+              style={{
+                marginTop: 14,
+                padding: 12,
+                border: '1px solid var(--warn)',
+                background: 'var(--accent-bg)',
+                color: 'var(--warn)',
+                borderRadius: 8,
+                fontSize: 14,
+              }}
+            >
+              반영 실패: {submitError}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+            <button
+              onClick={backToStep2}
+              disabled={submitting}
+              style={{
+                flex: 1,
+                padding: 14,
+                fontSize: 16,
+                fontWeight: 700,
+                color: 'var(--primary)',
+                background: 'transparent',
+                border: '2px solid var(--primary)',
+                borderRadius: 8,
+                opacity: submitting ? 0.5 : 1,
+              }}
+            >
+              이전
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={submitting}
+              className="btn-accent"
+              style={{ flex: 2, padding: 14, fontSize: 16, opacity: submitting ? 0.6 : 1 }}
+            >
+              {submitting ? '반영 중...' : '구글시트에 반영'}
+            </button>
+          </div>
+        </>
+      )}
+
+      {done && (
+        <div style={{ marginTop: 40, textAlign: 'center' }}>
+          <div
+            style={{
+              display: 'inline-grid',
+              placeItems: 'center',
+              width: 64,
+              height: 64,
+              borderRadius: '50%',
+              border: '3px solid var(--primary)',
+              color: 'var(--primary)',
+              fontFamily: 'var(--font-title)',
+              fontWeight: 700,
+              fontSize: 30,
+            }}
+          >
+            印
+          </div>
+          <p style={{ marginTop: 14, fontSize: 16, fontWeight: 700 }}>구글시트에 반영되었습니다</p>
+          <button
+            onClick={onBack}
+            className="btn-accent"
+            style={{ width: '100%', marginTop: 24, padding: 14, fontSize: 16 }}
+          >
+            홈으로
+          </button>
+        </div>
+      )}
     </div>
   );
 }

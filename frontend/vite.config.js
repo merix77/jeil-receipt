@@ -35,6 +35,7 @@ export default defineConfig({
     proxy: {
       '/receipts': 'http://localhost:3000',
       '/hygiene': 'http://localhost:3000',
+      '/yields': 'http://localhost:3000',
     },
   },
 });

@@ -50,6 +50,20 @@ export function registerEducation() {
   return request('/hygiene/education', { method: 'POST' });
 }
 
+export async function createYield(payload) {
+  return (
+    await request('/yields', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+  ).data; // { measurement, same_date_exists }
+}
+
+export async function confirmYield(id) {
+  return (await request(`/yields/${id}/confirm`, { method: 'POST' })).data;
+}
+
 export async function getReceiptImageUrl(receiptId) {
   const res = await fetch(`${BASE_URL}/receipts/${receiptId}/image`, {
     headers: { 'x-api-key': API_KEY },
