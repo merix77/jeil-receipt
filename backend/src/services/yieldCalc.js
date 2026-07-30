@@ -9,7 +9,7 @@ const { YIELD_PARTS } = require('../config/yieldParts');
 //
 // 입력: 사용자가 입력한 부위(마진 대상 7종)의 { part_name -> {weight_kg, unit_price} }
 //       + 총매입가
-// 출력: DB에 그대로 넣을 canonical 9행(parts) + 파생 3값
+// 출력: DB에 그대로 넣을 canonical 12행(parts) + 파생 3값
 function computeYield({ totalPurchasePrice, enteredParts }) {
   const byName = new Map();
   for (const p of enteredParts || []) byName.set(p.part_name, p);

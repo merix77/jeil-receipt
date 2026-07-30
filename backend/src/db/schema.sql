@@ -38,7 +38,7 @@ CREATE TABLE receipt_items (
 
 
 -- ===== 기능 B. 돼지 수율표 =====
--- 측정 1건 = yield_measurements 1행 (요약 탭 1행과 1:1) + yield_parts 9행(부위)
+-- 측정 1건 = yield_measurements 1행 (요약 탭 1행과 1:1) + yield_parts 12행(부위)
 CREATE TABLE yield_measurements (
   id                    SERIAL PRIMARY KEY,
   created_at            TIMESTAMP DEFAULT NOW(),
@@ -56,19 +56,19 @@ CREATE TABLE yield_measurements (
   sync_error            TEXT
 );
 
--- 부위 상세: 측정 1건당 순서 1~9로 9행 고정. 미입력 부위도 NULL 행으로 보존.
+-- 부위 상세: 측정 1건당 순서 1~12로 12행 고정. 미입력 부위도 NULL 행으로 보존.
 -- 자식 행은 마스터와 함께 살고 죽으므로 is_deleted를 두지 않는다(마스터의 is_deleted로 충분).
 CREATE TABLE yield_parts (
   id                SERIAL PRIMARY KEY,
   created_at        TIMESTAMP DEFAULT NOW(),
   updated_at        TIMESTAMP DEFAULT NOW(),
   measurement_id    INTEGER NOT NULL REFERENCES yield_measurements(id),
-  part_order        SMALLINT NOT NULL,           -- 1=삼겹 … 9=미니족
+  part_order        SMALLINT NOT NULL,           -- 1=삼겹 … 12=미니족
   part_name         VARCHAR(20) NOT NULL,
   weight_kg         NUMERIC(10,2),               -- 등뼈·미니족·미입력은 NULL
   unit_price        NUMERIC(12,2),               -- 〃
   revenue           NUMERIC(12,2),               -- 중량×단가 (등뼈·미니족 고정 5000)
-  margin_included   BOOLEAN NOT NULL,            -- 1~7 true, 등뼈·미니족 false
+  margin_included   BOOLEAN NOT NULL,            -- 1~10 true, 등뼈·미니족 false
   -- 측정 1건당 부위 순서는 유일해야 함(중복 행이 들어가면 합계가 조용히 틀어짐)
   UNIQUE (measurement_id, part_order)
 );

@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const { computeYield } = require('../services/yieldCalc');
+const { appendYield } = require('../services/sheetsService');
 const { YIELD_PARTS } = require('../config/yieldParts');
 const { todayStr } = require('../utils/date');
 
@@ -15,7 +16,7 @@ async function createYield(req, res) {
   if (!Number.isFinite(Number(total_purchase_price)) || Number(total_purchase_price) < 0) {
     return res.status(400).json({ success: false, error: '총매입가를 0 이상의 숫자로 입력해주세요', code: 'INVALID_PURCHASE_PRICE' });
   }
-  // 마진 대상 7부위 외 이름이 오면 거부(등뼈·미니족은 서버가 고정값으로 채움)
+  // 마진 대상 부위(10종) 외 이름이 오면 거부(등뼈·미니족은 서버가 고정값으로 채움)
   for (const p of parts || []) {
     if (!MARGIN_PART_NAMES.has(p.part_name)) {
       return res.status(400).json({ success: false, error: `입력할 수 없는 부위입니다: ${p.part_name}`, code: 'INVALID_PART' });
@@ -124,10 +125,45 @@ async function getYield(req, res) {
   res.json({ success: true, data: measurement, message: 'OK' });
 }
 
+async function confirmYield(req, res) {
+  const { id } = req.params;
+
+  const { rows: [measurement] } = await pool.query(
+    'SELECT * FROM yield_measurements WHERE id = $1 AND is_deleted = FALSE',
+    [id]
+  );
+  if (!measurement) {
+    return res.status(404).json({ success: false, error: '해당 수율 측정을 찾을 수 없습니다', code: 'NOT_FOUND' });
+  }
+  // 이미 반영된 건은 재전송 차단
+  if (measurement.sheet_synced) {
+    return res.json({ success: true, data: { id }, message: '이미 시트에 반영된 건입니다' });
+  }
+
+  const { rows: parts } = await pool.query(
+    'SELECT * FROM yield_parts WHERE measurement_id = $1 ORDER BY part_order',
+    [id]
+  );
+
+  try {
+    await appendYield(measurement, parts); // 상세 → 요약, 둘 다 성공해야 확정
+    await pool.query(
+      'UPDATE yield_measurements SET sheet_synced = TRUE, sheet_synced_at = NOW(), sync_error = NULL WHERE id = $1',
+      [id]
+    );
+  } catch (err) {
+    console.error(err);
+    await pool.query('UPDATE yield_measurements SET sync_error = $1 WHERE id = $2', [err.message, id]);
+    return res.status(502).json({ success: false, error: '수율표 시트 기록에 실패했습니다', code: 'SYNC_FAILED' });
+  }
+
+  res.json({ success: true, data: { id }, message: '수율표 시트에 기록되었습니다' });
+}
+
 function numOrNull(v) {
   if (v === null || v === undefined || v === '') return null;
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
 
-module.exports = { createYield, listYields, getYield };
+module.exports = { createYield, listYields, getYield, confirmYield };
