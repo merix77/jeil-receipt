@@ -4,6 +4,13 @@ import { VitePWA } from 'vite-plugin-pwa';
 import basicSsl from '@vitejs/plugin-basic-ssl';
 
 export default defineConfig({
+  // 진단용 빌드 식별자 — 배포마다 달라짐(커밋 해시 + 빌드 시각).
+  // 브라우저가 받는 번들이 분석한 번들과 같은지 대조용.
+  define: {
+    __BUILD_ID__: JSON.stringify(
+      (process.env.VERCEL_GIT_COMMIT_SHA || 'local').slice(0, 7) + ' @ ' + new Date().toISOString()
+    ),
+  },
   plugins: [
     react(),
     // getUserMedia (후면 카메라 직접 제어) requires a secure context,

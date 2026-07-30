@@ -66,7 +66,7 @@ export default function YieldScreen({ onBack }) {
 
       <h2 style={{ margin: '8px 0 0' }}>
         수율표{' '}
-        <span style={{ fontSize: 14, color: 'var(--ink-muted)' }}>· 마리 등록 (1/3)</span>
+        <span style={{ fontSize: 14, color: 'var(--ink-muted)' }}>· 마리 등록 단계 {step}</span>
       </h2>
 
       {step > 1 && (
@@ -131,6 +131,10 @@ export default function YieldScreen({ onBack }) {
           </button>
         </>
       )}
+
+      <p style={{ marginTop: 28, fontSize: 11, color: 'var(--ink-muted)' }}>
+        build: {__BUILD_ID__}
+      </p>
     </div>
   );
 }
