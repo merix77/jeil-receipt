@@ -9,6 +9,7 @@ const cors = require('cors');
 const requireApiKey = require('./middleware/auth');
 const receiptsRouter = require('./routes/receipts');
 const hygieneRouter = require('./routes/hygiene');
+const yieldsRouter = require('./routes/yields');
 
 const app = express();
 
@@ -18,6 +19,7 @@ app.use(requireApiKey);
 
 app.use('/receipts', receiptsRouter);
 app.use('/hygiene', hygieneRouter);
+app.use('/yields', yieldsRouter);
 
 app.use((req, res) => {
   res.status(404).json({ success: false, error: 'Not found', code: 'NOT_FOUND' });

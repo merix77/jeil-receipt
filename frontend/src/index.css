@@ -16,7 +16,7 @@ h1, h2, h3 {
 }
 
 .btn-accent {
-  color: #fff;
+  color: var(--accent);
   background: var(--primary);
   border: none;
   border-radius: 8px;

@@ -41,6 +41,7 @@ export default function App() {
         style={{
           padding: '16px',
           background: 'var(--primary)',
+          borderBottom: '2px solid var(--accent)',
           textAlign: 'center',
         }}
         onClick={goHome}

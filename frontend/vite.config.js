@@ -18,8 +18,8 @@ export default defineConfig({
         short_name: '거래내역서',
         start_url: '/',
         display: 'standalone',
-        background_color: '#E6F4EE',
-        theme_color: '#3F8C76',
+        background_color: '#BFE4D0',
+        theme_color: '#1E6A50',
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },

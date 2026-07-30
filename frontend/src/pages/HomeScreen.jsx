@@ -208,7 +208,7 @@ export default function HomeScreen({ onExtracted, onOpenHistory }) {
       <hr style={{ border: 'none', borderTop: '1px solid var(--hairline)', margin: '24px 0 0' }} />
 
       <p style={{ padding: '14px 0', margin: 0, fontSize: 15 }}>
-        오늘 기록 <strong style={{ color: 'var(--accent)' }}>{todayCount}건</strong>
+        오늘 기록 <strong style={{ color: 'var(--primary)' }}>{todayCount}건</strong>
       </p>
 
       <div style={{ display: 'flex', gap: 16, paddingBottom: 24, fontSize: 13 }}>

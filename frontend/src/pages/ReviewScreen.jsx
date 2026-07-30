@@ -40,7 +40,7 @@ export default function ReviewScreen({ receipt, items: initialItems, onDone }) {
     <div style={{ padding: '0 16px 80px' }}>
       <h2>
         내용 확인{' '}
-        <span style={{ fontSize: 14, color: 'var(--accent)' }}>
+        <span style={{ fontSize: 14, color: 'var(--primary)' }}>
           {docTypeLabel(receipt.doc_type)}
         </span>
       </h2>
