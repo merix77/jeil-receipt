@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { todayStr } from '../dates.js';
 import { YIELD_PARTS, FIXED_PART_REVENUE } from '../yieldParts.js';
 import { createYield, confirmYield } from '../api/receipts.js';
@@ -39,9 +39,8 @@ const inputStyle = {
   color: 'var(--ink)',
 };
 
-export default function YieldScreen({ onBack }) {
-  const [step, setStep] = useState(1);
-
+// step은 App이 소유(뒤로가기 스택에 편입). 앞으로 가기 onNext(step), 뒤로 onBack, 홈 복귀 onGoHome.
+export default function YieldScreen({ step, onNext, onBack, onGoHome }) {
   // 1단계 · 마리 등록 (확정 전까지 로컬 보관)
   const [measuredDate, setMeasuredDate] = useState(todayStr());
   const [pricePerKg, setPricePerKg] = useState('');
@@ -60,6 +59,28 @@ export default function YieldScreen({ onBack }) {
   const [done, setDone] = useState(false);
   const savedIdRef = useRef(null); // 반영 중 실패 후 재시도 시 중복 생성 방지
 
+  // 뒤로가기로 2단계 이하로 돌아가면 저장 상태 무효화(값을 고치면 새 측정으로 다시 저장)
+  useEffect(() => {
+    if (step < 3) {
+      savedIdRef.current = null;
+      setSubmitError(null);
+      setDone(false);
+    }
+  }, [step]);
+
+  // 입력 중 앱 이탈(새로고침·닫기 등) 시 경고 — 홈까지 되감긴 경우가 아니라 값이 남아있을 때만
+  useEffect(() => {
+    const handler = (e) => {
+      const hasInput = pricePerKg || totalWeight || totalPurchase || Object.keys(partValues).length > 0;
+      if (hasInput && !done) {
+        e.preventDefault();
+        e.returnValue = '';
+      }
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [pricePerKg, totalWeight, totalPurchase, partValues, done]);
+
   function handleNext() {
     if (!(Number(totalWeight) > 0)) {
       setError('총중량을 숫자로 입력해주세요.');
@@ -70,7 +91,7 @@ export default function YieldScreen({ onBack }) {
       return;
     }
     setError(null);
-    setStep(2);
+    onNext(2);
   }
 
   const marginDone = (name) => {
@@ -127,13 +148,6 @@ export default function YieldScreen({ onBack }) {
     }
   }
 
-  function backToStep2() {
-    // 2단계로 돌아가 값을 고치면 새 측정으로 다시 저장해야 하므로 저장 id 무효화
-    savedIdRef.current = null;
-    setSubmitError(null);
-    setStep(2);
-  }
-
   function tapPart(p) {
     if (p.marginIncluded) {
       setOpenPart(openPart === p.name ? null : p.name);
@@ -148,7 +162,7 @@ export default function YieldScreen({ onBack }) {
   return (
     <div style={{ padding: '0 16px 40px' }}>
       <button
-        onClick={onBack}
+        onClick={onGoHome}
         style={{ marginTop: 12, padding: 0, fontSize: 14, color: 'var(--ink-muted)', background: 'transparent', border: 'none' }}
       >
         ‹ 홈으로
@@ -275,7 +289,7 @@ export default function YieldScreen({ onBack }) {
 
           <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
             <button
-              onClick={() => setStep(1)}
+              onClick={onBack}
               style={{
                 flex: 1,
                 padding: 14,
@@ -289,7 +303,7 @@ export default function YieldScreen({ onBack }) {
             >
               이전
             </button>
-            <button onClick={() => setStep(3)} className="btn-accent" style={{ flex: 2, padding: 14, fontSize: 16 }}>
+            <button onClick={() => onNext(3)} className="btn-accent" style={{ flex: 2, padding: 14, fontSize: 16 }}>
               다음
             </button>
           </div>
@@ -372,7 +386,7 @@ export default function YieldScreen({ onBack }) {
 
           <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
             <button
-              onClick={backToStep2}
+              onClick={onBack}
               disabled={submitting}
               style={{
                 flex: 1,
@@ -420,7 +434,7 @@ export default function YieldScreen({ onBack }) {
           </div>
           <p style={{ marginTop: 14, fontSize: 16, fontWeight: 700 }}>구글시트에 반영되었습니다</p>
           <button
-            onClick={onBack}
+            onClick={onGoHome}
             className="btn-accent"
             style={{ width: '100%', marginTop: 24, padding: 14, fontSize: 16 }}
           >
