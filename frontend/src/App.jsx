@@ -4,6 +4,7 @@ import ReviewScreen from './pages/ReviewScreen.jsx';
 import HistoryScreen from './pages/HistoryScreen.jsx';
 import YieldScreen from './pages/YieldScreen.jsx';
 import CostCalcScreen from './pages/CostCalcScreen.jsx';
+import UpdatePrompt from './components/UpdatePrompt.jsx';
 import { listReceipts } from './api/receipts.js';
 import { todayStr, monthStr, localDateStr } from './dates.js';
 
@@ -117,6 +118,8 @@ export default function App() {
         />
       )}
       {view.screen === 'costcalc' && <CostCalcScreen onBack={goBack} />}
+
+      <UpdatePrompt />
     </div>
   );
 }

@@ -10,7 +10,8 @@ export default defineConfig({
     // so the dev server must run over HTTPS even on the local network.
     basicSsl(),
     VitePWA({
-      registerType: 'autoUpdate',
+      // prompt: 새 버전을 자동 적용하지 않고 UpdatePrompt 배너로 사용자가 새로고침하게 함
+      registerType: 'prompt',
       // public/ 아이콘을 프리캐시에 포함시켜 오프라인에서도 아이콘이 뜨게 함
       includeAssets: ['icon-192.png', 'icon-512.png', 'icon-512-maskable.png'],
       manifest: {
