@@ -3,6 +3,7 @@ import HomeScreen from './pages/HomeScreen.jsx';
 import ReviewScreen from './pages/ReviewScreen.jsx';
 import HistoryScreen from './pages/HistoryScreen.jsx';
 import YieldScreen from './pages/YieldScreen.jsx';
+import CostCalcScreen from './pages/CostCalcScreen.jsx';
 import { listReceipts } from './api/receipts.js';
 import { todayStr, monthStr, localDateStr } from './dates.js';
 
@@ -95,6 +96,7 @@ export default function App() {
           onExtracted={goToReview}
           onOpenHistory={() => navigate({ screen: 'history' })}
           onOpenYield={() => navigate({ screen: 'yield', step: 1 })}
+          onOpenCostCalc={() => navigate({ screen: 'costcalc' })}
         />
       )}
       {view.screen === 'review' && activeReceipt && (
@@ -114,6 +116,7 @@ export default function App() {
           onGoHome={goHomeUnwind}
         />
       )}
+      {view.screen === 'costcalc' && <CostCalcScreen onBack={goBack} />}
     </div>
   );
 }

@@ -19,7 +19,7 @@ const cardStyle = {
   lineHeight: 1.4,
 };
 
-export default function HomeScreen({ onExtracted, onOpenHistory, onOpenYield }) {
+export default function HomeScreen({ onExtracted, onOpenHistory, onOpenYield, onOpenCostCalc }) {
   const [todayCount, setTodayCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -208,7 +208,13 @@ export default function HomeScreen({ onExtracted, onOpenHistory, onOpenYield }) 
       <button onClick={onOpenYield} style={{ ...cardStyle, width: '100%', marginTop: 10 }}>
         📊
         <br />
-        수율표
+        돼지 수율표
+      </button>
+
+      <button onClick={onOpenCostCalc} style={{ ...cardStyle, width: '100%', marginTop: 10 }}>
+        🧮
+        <br />
+        부분육 원가 계산기
       </button>
 
       <hr style={{ border: 'none', borderTop: '1px solid var(--hairline)', margin: '24px 0 0' }} />
