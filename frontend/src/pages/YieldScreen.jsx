@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { todayStr } from '../dates.js';
 import { YIELD_PARTS, FIXED_PART_REVENUE } from '../yieldParts.js';
+import { geunPriceLabel } from '../units.js';
 import { createYield, confirmYield } from '../api/receipts.js';
 
 const won = (n) => `${Math.round(n).toLocaleString()}원`;
@@ -270,6 +271,11 @@ export default function YieldScreen({ step, onNext, onBack, onGoHome }) {
                   style={inputStyle}
                 />
               </Field>
+              {geunPriceLabel(partValues[openPart]?.price) && (
+                <div style={{ marginTop: 6, textAlign: 'right', fontSize: 13, color: 'var(--ink-muted)' }}>
+                  {geunPriceLabel(partValues[openPart]?.price)}
+                </div>
+              )}
             </div>
           )}
 

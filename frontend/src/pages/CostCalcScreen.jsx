@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { geunPriceLabel } from '../units.js';
 
 // 계산 전용 화면 — 저장/시트/DB 없음. 입력이 바뀔 때마다 실시간 계산.
 
@@ -37,7 +38,7 @@ function Field({ label, unit, value, onChange }) {
   );
 }
 
-function Row({ label, children, strong }) {
+function Row({ label, children, sub, strong }) {
   return (
     <div
       style={{
@@ -50,7 +51,10 @@ function Row({ label, children, strong }) {
       }}
     >
       <span style={{ color: 'var(--ink-muted)' }}>{label}</span>
-      <span style={{ fontWeight: 700 }}>{children}</span>
+      <span style={{ textAlign: 'right' }}>
+        <span style={{ fontWeight: 700 }}>{children}</span>
+        {sub && <div style={{ fontSize: 12, fontWeight: 400, color: 'var(--ink-muted)', marginTop: 2 }}>{sub}</div>}
+      </span>
     </div>
   );
 }
@@ -117,13 +121,16 @@ export default function CostCalcScreen({ onBack }) {
       <Field label="로스 중량" unit="kg" value={lossWeight} onChange={setLossWeight} />
       <Field label="목표 마진율" unit="%" value={targetRate} onChange={handleTargetRate} />
       <Field label="마진율 대비 판매가" unit="원/kg" value={myPrice} onChange={setMyPrice} />
+      {geunPriceLabel(myP) && (
+        <div style={{ textAlign: 'right', fontSize: 12, color: 'var(--ink-muted)', marginTop: 4 }}>{geunPriceLabel(myP)}</div>
+      )}
 
       <div style={{ marginTop: 22 }}>
         <div style={{ fontSize: 13, color: 'var(--ink-muted)', marginBottom: 2 }}>계산 결과</div>
         <Row label="실중량 (매입 - 로스)">{realW < 0 ? '—' : kg(realW)}</Row>
         <Row label="수율">{buyW > 0 ? pct(yieldPct) : '—'}</Row>
-        <Row label="kg당 실원가">{realW > 0 ? perKg(costPerKg) : '—'}</Row>
-        <Row label="목표 판매가" strong>
+        <Row label="kg당 실원가" sub={geunPriceLabel(costPerKg)}>{realW > 0 ? perKg(costPerKg) : '—'}</Row>
+        <Row label="목표 판매가" strong sub={geunPriceLabel(targetPrice)}>
           <span style={{ color: 'var(--primary)', fontSize: 17 }}>
             {realW > 0 && tRate < 100 ? perKg(targetPrice) : '—'}
           </span>
