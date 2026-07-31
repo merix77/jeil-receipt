@@ -6,7 +6,9 @@
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
-    "dev": "nodemon src/app.js"
+    "dev": "nodemon src/app.js",
+    "migrate": "node src/db/migrate.js",
+    "start:prod": "node src/db/migrate.js && node src/app.js"
   },
   "dependencies": {
     "@google/genai": "^2.12.0",
