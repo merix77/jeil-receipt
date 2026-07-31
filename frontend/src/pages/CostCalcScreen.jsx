@@ -85,6 +85,17 @@ export default function CostCalcScreen({ onBack }) {
   const marginAmount = totalRevenue - buyP;
   const marginRate = totalRevenue > 0 ? (marginAmount / totalRevenue) * 100 : 0;
 
+  // 한방향 자동 산출: 목표 마진율을 입력/수정할 때만 판매가를 목표 판매가로 채운다.
+  // (매입중량·총매입가·로스중량 변경으로는 재채움하지 않음 — 사용자가 고친 값 유지)
+  function handleTargetRate(v) {
+    setTargetRate(v);
+    const r = num(v);
+    if (realW > 0 && r < 100) {
+      setMyPrice(String(Math.round(costPerKg / (1 - r / 100))));
+    }
+    // 계산 불가(실중량 0, 목표마진율 100 이상 등)면 판매가를 덮어쓰지 않음
+  }
+
   const negColor = (n) => (n < 0 ? 'var(--warn)' : 'var(--primary)');
 
   return (
@@ -104,7 +115,7 @@ export default function CostCalcScreen({ onBack }) {
       <Field label="매입 총중량" unit="kg" value={buyWeight} onChange={setBuyWeight} />
       <Field label="총매입가" unit="원" value={buyPrice} onChange={setBuyPrice} />
       <Field label="로스 중량" unit="kg" value={lossWeight} onChange={setLossWeight} />
-      <Field label="목표 마진율" unit="%" value={targetRate} onChange={setTargetRate} />
+      <Field label="목표 마진율" unit="%" value={targetRate} onChange={handleTargetRate} />
       <Field label="내가 정한 판매가" unit="원/kg" value={myPrice} onChange={setMyPrice} />
 
       <div style={{ marginTop: 22 }}>
