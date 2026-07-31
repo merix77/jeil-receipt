@@ -120,7 +120,7 @@ export default function CostCalcScreen({ onBack }) {
 
       <div style={{ marginTop: 22 }}>
         <div style={{ fontSize: 13, color: 'var(--ink-muted)', marginBottom: 2 }}>계산 결과</div>
-        <Row label="실중량 (매입 - 로스)">{kg(realW)}</Row>
+        <Row label="실중량 (매입 - 로스)">{realW < 0 ? '—' : kg(realW)}</Row>
         <Row label="수율">{buyW > 0 ? pct(yieldPct) : '—'}</Row>
         <Row label="kg당 실원가">{realW > 0 ? perKg(costPerKg) : '—'}</Row>
         <Row label="목표 판매가" strong>

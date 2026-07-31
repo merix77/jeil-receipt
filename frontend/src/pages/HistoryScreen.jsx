@@ -20,9 +20,16 @@ export default function HistoryScreen({ onBack }) {
   const [imageUrl, setImageUrl] = useState(null);
   const [resending, setResending] = useState(false);
   const [msg, setMsg] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  const [imageError, setImageError] = useState(false);
 
   function load() {
-    listReceipts(month).then(setReceipts);
+    listReceipts(month)
+      .then((r) => {
+        setReceipts(r);
+        setLoadError(null);
+      })
+      .catch((err) => setLoadError(err.message));
   }
 
   useEffect(load, [month]);
@@ -39,6 +46,7 @@ export default function HistoryScreen({ onBack }) {
     setMonth(monthStr(new Date(y, m - 1 + delta, 1)));
     setOpenId(null);
     setImageUrl(null);
+    setImageError(false);
     setMsg(null);
   }
 
@@ -47,17 +55,19 @@ export default function HistoryScreen({ onBack }) {
     if (openId === receipt.id) {
       setOpenId(null);
       setImageUrl(null);
+      setImageError(false);
       return;
     }
     setOpenId(receipt.id);
     setImageUrl(null);
+    setImageError(false);
     try {
       const url = await getReceiptImageUrl(receipt.id);
       // A slow fetch must not paint its photo onto whichever row is open now.
       if (openIdRef.current === receipt.id) setImageUrl(url);
       else URL.revokeObjectURL(url);
     } catch {
-      setImageUrl(null);
+      if (openIdRef.current === receipt.id) setImageError(true);
     }
   }
 
@@ -96,7 +106,12 @@ export default function HistoryScreen({ onBack }) {
         </button>
       </div>
 
-      {receipts.length === 0 && <p style={{ color: 'var(--ink-muted)' }}>이 달의 기록이 없습니다</p>}
+      {loadError && (
+        <p style={{ color: 'var(--warn)', fontSize: 14 }}>조회 실패: {loadError}</p>
+      )}
+      {!loadError && receipts.length === 0 && (
+        <p style={{ color: 'var(--ink-muted)' }}>이 달의 기록이 없습니다</p>
+      )}
 
       {receipts.map((r) => (
         <div key={r.id} style={{ borderBottom: '1px solid var(--hairline)' }}>
@@ -135,6 +150,8 @@ export default function HistoryScreen({ onBack }) {
             <div style={{ paddingBottom: 16 }}>
               {imageUrl ? (
                 <img src={imageUrl} alt="원본 사진" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--hairline)' }} />
+              ) : imageError ? (
+                <p style={{ fontSize: 13, color: 'var(--warn)' }}>사진을 불러오지 못했습니다</p>
               ) : (
                 <p style={{ fontSize: 13, color: 'var(--ink-muted)' }}>사진 불러오는 중...</p>
               )}

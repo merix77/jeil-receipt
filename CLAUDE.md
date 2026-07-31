@@ -1,9 +1,10 @@
 # 거래내역서 OCR 앱 (제일축산 PREMIUM)
 
-개인용 PWA. 두 가지 기능을 담는다.
+개인용 PWA. 세 가지 기능을 담는다.
 
 - **A. 거래내역서 OCR** — 종이 거래내역서를 촬영 → AI로 항목 추출 → 사용자 확인 → 구글시트 자동 입력
 - **B. 돼지 수율표** — 이분도체 한 짝의 부위별 중량·단가 입력 → 마진금액/마진율 계산 → 구글시트 기록
+- **C. 부분육 원가 계산기** — 매입중량·총매입가·로스·목표마진율로 실원가/목표판매가/마진을 실시간 계산. **저장·시트연동 없는 계산 전용 화면**(B 돼지 수율표와 별개 기능).
 
 사용자 1명(본인), 하루 5~10건 촬영. 앱스토어 배포 없음, 홈 화면 추가로 사용.
 
@@ -14,12 +15,16 @@
 | 레이어 | 기술 |
 |---|---|
 | 프론트엔드 | React + Vite (Vercel) |
-| 백엔드 | Node.js + Express (Railway) |
-| DB | PostgreSQL |
+| 백엔드 | Node.js + Express (**Render**) |
+| DB | PostgreSQL — **프로덕션은 Neon**(관리형). 백엔드 `DATABASE_URL`이 neon.tech를 가리킴. Render Postgres는 미사용 |
 | 시트 연동 | Google Sheets API, 서비스 계정 인증 |
 
 표준 응답 형식: `{ success, data, message }` / `{ success: false, error, code }`
 모든 API는 `x-api-key` 헤더 필요.
+
+**화면 전환/뒤로가기**: 라우터 없음. `App.jsx`가 History API로 back 스택을 관리(navigate=pushState, popstate=pop, 홈 복귀는 unwind). 수율표 step 전환도 편입.
+
+**DB 마이그레이션**: `backend/src/db/migrations/*.sql`(전부 `IF NOT EXISTS`, 재실행 안전)을 `npm run migrate`(=`src/db/migrate.js`)로 적용. Render **Start Command를 `npm run start:prod`**(= migrate 후 서버 기동)로 두면 배포마다 자동 적용. 빈 DB에서도 `migrate.js`만으로 전체 스키마 생성(001_init → 002_yield). 스키마 변경은 반드시 새 `NNN_*.sql`로 추가할 것.
 
 ---
 

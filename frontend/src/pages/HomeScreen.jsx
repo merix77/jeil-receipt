@@ -4,6 +4,9 @@ import { compressReceiptImage } from '../api/compressImage.js';
 import CameraCapture from '../components/CameraCapture.jsx';
 import { todayStr, monthStr, localDateStr } from '../dates.js';
 
+// 주의: 아래 시트 ID는 백엔드 env SHEET_ID_HYGIENE_CHECK / SHEET_ID_HYGIENE_EDU 와
+// 같은 값이다. 시트를 교체하면 반드시 양쪽을 함께 수정할 것(한쪽만 바꾸면
+// 버튼이 기록하는 시트 ≠ 링크가 여는 시트로 어긋남).
 const HYGIENE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1_Ud__ZfAFF8xFhfMa-oWkfC0YSx6otrrSE5tdBGiFnY';
 const EDU_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1vVdyIGuYhGELd8OZHaSNyjGXqqOOapcXAk44kkJsUWM';
 
