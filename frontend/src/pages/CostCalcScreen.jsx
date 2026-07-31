@@ -116,7 +116,7 @@ export default function CostCalcScreen({ onBack }) {
       <Field label="총매입가" unit="원" value={buyPrice} onChange={setBuyPrice} />
       <Field label="로스 중량" unit="kg" value={lossWeight} onChange={setLossWeight} />
       <Field label="목표 마진율" unit="%" value={targetRate} onChange={handleTargetRate} />
-      <Field label="내가 정한 판매가" unit="원/kg" value={myPrice} onChange={setMyPrice} />
+      <Field label="마진율 대비 판매가" unit="원/kg" value={myPrice} onChange={setMyPrice} />
 
       <div style={{ marginTop: 22 }}>
         <div style={{ fontSize: 13, color: 'var(--ink-muted)', marginBottom: 2 }}>계산 결과</div>
@@ -131,7 +131,7 @@ export default function CostCalcScreen({ onBack }) {
       </div>
 
       <div style={{ marginTop: 20 }}>
-        <div style={{ fontSize: 13, color: 'var(--ink-muted)', marginBottom: 2 }}>내 판매가 기준</div>
+        <div style={{ fontSize: 13, color: 'var(--ink-muted)', marginBottom: 2 }}>판매가 기준 결과</div>
         <Row label="총매출액">{realW > 0 && myP > 0 ? won(totalRevenue) : '—'}</Row>
         <Row label="마진금액">
           <span style={{ color: negColor(marginAmount) }}>{realW > 0 && myP > 0 ? won(marginAmount) : '—'}</span>
