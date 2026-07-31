@@ -59,6 +59,9 @@ function Row({ label, children, sub, strong }) {
   );
 }
 
+// 인주레드는 '목표 판매가' 한 항목에만 쓰는 강조색(테마 딥그린·골드와 별개, 여기 외 사용 금지).
+const INJU_RED = '#AF3226';
+
 const num = (v) => {
   const x = Number(v);
   return Number.isFinite(x) ? x : 0;
@@ -118,8 +121,28 @@ export default function CostCalcScreen({ onBack }) {
         <Row label="실중량 (매입 - 로스)">{realW < 0 ? '—' : kg(realW)}</Row>
         <Row label="수율">{buyW > 0 ? pct(yieldPct) : '—'}</Row>
         <Row label="kg당 실원가" sub={geunPriceLabel(costPerKg)}>{realW > 0 ? perKg(costPerKg) : '—'}</Row>
-        <Row label="목표 판매가" strong sub={geunPriceLabel(targetPrice)}>
-          <span style={{ color: 'var(--primary)', fontSize: 17 }}>
+        <Row
+          label="목표 판매가"
+          strong
+          sub={
+            geunPriceLabel(targetPrice) && (
+              <span
+                style={{
+                  display: 'inline-block',
+                  background: 'rgba(175, 50, 38, 0.12)',
+                  color: INJU_RED,
+                  fontWeight: 700,
+                  fontSize: 15,
+                  padding: '4px 9px',
+                  borderRadius: 6,
+                }}
+              >
+                {geunPriceLabel(targetPrice)}
+              </span>
+            )
+          }
+        >
+          <span style={{ color: INJU_RED, fontSize: 21, fontWeight: 800 }}>
             {realW > 0 && tRate < 100 ? perKg(targetPrice) : '—'}
           </span>
         </Row>
