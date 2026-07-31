@@ -107,7 +107,8 @@ export default function YieldScreen({ step, onNext, onBack, onGoHome }) {
   const totalRevenue = YIELD_PARTS.filter((p) => p.marginIncluded).reduce((s, p) => s + revenueOf(p), 0);
   const purchaseNum = Number(totalPurchase) || 0;
   const marginAmount = totalRevenue - purchaseNum;
-  const marginRate = purchaseNum > 0 ? Math.round((marginAmount / purchaseNum) * 1000) / 10 : 0;
+  // 판매가 대비 마진율 = 마진금액 ÷ 총매출액 × 100 (총매출액 0이면 0)
+  const marginRate = totalRevenue > 0 ? Math.round((marginAmount / totalRevenue) * 1000) / 10 : 0;
 
   // 시트에 기록될 부위(입력된 마진부위 + 등뼈·미니족 고정 5,000)
   const summaryRows = YIELD_PARTS.filter((p) => !p.marginIncluded || revenueOf(p) > 0).map((p) =>

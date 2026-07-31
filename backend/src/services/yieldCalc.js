@@ -50,8 +50,9 @@ function computeYield({ totalPurchasePrice, enteredParts }) {
 
   const purchase = toNum(totalPurchasePrice) ?? 0;
   const marginAmount = round2(totalRevenue - purchase);
-  // 0으로 나누기 방지: 총매입가 0이면 마진율 0
-  const marginRate = purchase > 0 ? round1((marginAmount / purchase) * 100) : 0;
+  // 판매가 대비 마진율(소매 표준) = 마진금액 ÷ 총매출액 × 100.
+  // 0으로 나누기 방지: 총매출액 0이면 마진율 0.
+  const marginRate = totalRevenue > 0 ? round1((marginAmount / totalRevenue) * 100) : 0;
 
   return { parts, totalRevenue, marginAmount, marginRate };
 }
