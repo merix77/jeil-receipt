@@ -3,7 +3,7 @@ import { geunPriceLabel } from '../units.js';
 
 // 계산 전용 화면 — 저장/시트/DB 없음. 입력이 바뀔 때마다 실시간 계산.
 
-function Field({ label, unit, value, onChange }) {
+function Field({ label, unit, value, onChange, muted }) {
   return (
     <label
       style={{
@@ -17,7 +17,7 @@ function Field({ label, unit, value, onChange }) {
       <span style={{ width: 120, color: 'var(--ink-muted)', fontSize: 14 }}>{label}</span>
       <span style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
         <input
-          type="number"
+          type="text"
           inputMode="decimal"
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -29,7 +29,7 @@ function Field({ label, unit, value, onChange }) {
             border: '1px solid var(--hairline)',
             borderRadius: 8,
             background: 'transparent',
-            color: 'var(--ink)',
+            color: muted ? 'var(--ink-muted)' : 'var(--ink)',
           }}
         />
         <span style={{ color: 'var(--ink-muted)', fontSize: 13, width: 44 }}>{unit}</span>
@@ -70,20 +70,30 @@ const won = (n) => `${Math.round(n).toLocaleString()}원`;
 const perKg = (n) => `${Math.round(n).toLocaleString()}원/kg`;
 const kg = (n) => `${Math.round(n * 100) / 100}kg`;
 const pct = (n) => `${Math.round(n * 10) / 10}%`;
+// 파생 칸 표시값 — 소수점만 정리하고 천단위 콤마는 넣지 않는다(입력칸이라 그대로 고쳐 쓸 수 있어야 함).
+const plain = (n) => String(Math.round(n * 100) / 100);
 
 export default function CostCalcScreen({ onBack }) {
   const [buyWeight, setBuyWeight] = useState('');
-  const [buyPrice, setBuyPrice] = useState('');
+  const [unitPrice, setUnitPrice] = useState('');
+  const [totalPrice, setTotalPrice] = useState('');
+  // 사용자가 마지막에 고친 칸이 기준. 반대쪽은 렌더 중 파생 계산(서로 setState로 물리지 않음).
+  const [priceBasis, setPriceBasis] = useState('unit');
   const [lossWeight, setLossWeight] = useState('');
   const [targetRate, setTargetRate] = useState('');
 
   const buyW = num(buyWeight);
-  const buyP = num(buyPrice);
   const lossW = num(lossWeight);
   const tRate = num(targetRate);
 
+  const basisIsUnit = priceBasis === 'unit';
+  // 총중량이 0/공란이면 나눗셈·곱셈 근거가 없어 파생 칸은 '—'
+  const canDerive = buyW > 0;
+  const buyP = basisIsUnit ? num(unitPrice) * buyW : num(totalPrice);
+  const unitField = basisIsUnit ? unitPrice : canDerive ? plain(num(totalPrice) / buyW) : '—';
+  const totalField = basisIsUnit ? (canDerive ? plain(num(unitPrice) * buyW) : '—') : totalPrice;
+
   const realW = buyW - lossW; // 실중량
-  const purchasePerKg = buyW > 0 ? buyP / buyW : 0; // 매입 kg단가 (로스 반영 전)
   const yieldPct = buyW > 0 ? (realW / buyW) * 100 : 0; // 수율
   const costPerKg = realW > 0 ? buyP / realW : 0; // kg당 실원가
   const targetPrice = realW > 0 && tRate < 100 ? costPerKg / (1 - tRate / 100) : 0; // 목표 판매가
@@ -92,6 +102,16 @@ export default function CostCalcScreen({ onBack }) {
   const totalRevenue = realW > 0 ? myP * realW : 0; // 판매가 기준 총매출액
   const marginAmount = totalRevenue - buyP;
   const marginRate = totalRevenue > 0 ? (marginAmount / totalRevenue) * 100 : 0;
+
+  // 파생 칸을 고치면 그 칸이 기준이 된다(잠그지 않음).
+  function handleUnitPrice(v) {
+    setPriceBasis('unit');
+    setUnitPrice(v);
+  }
+  function handleTotalPrice(v) {
+    setPriceBasis('total');
+    setTotalPrice(v);
+  }
 
   const negColor = (n) => (n < 0 ? 'var(--warn)' : 'var(--primary)');
 
@@ -109,9 +129,9 @@ export default function CostCalcScreen({ onBack }) {
         입력하면 실시간으로 계산됩니다. (저장·기록 없음)
       </p>
 
+      <Field label="KG단가" unit="원/kg" value={unitField} onChange={handleUnitPrice} muted={!basisIsUnit} />
       <Field label="매입 총중량" unit="kg" value={buyWeight} onChange={setBuyWeight} />
-      <Field label="총매입가" unit="원" value={buyPrice} onChange={setBuyPrice} />
-      {buyW > 0 && <Row label="KG단가 (총매입가 ÷ 총중량)">{perKg(purchasePerKg)}</Row>}
+      <Field label="총매입가" unit="원" value={totalField} onChange={handleTotalPrice} muted={basisIsUnit} />
       <Field label="로스 중량" unit="kg" value={lossWeight} onChange={setLossWeight} />
       <Field label="목표 마진율" unit="%" value={targetRate} onChange={setTargetRate} />
       <Row label="마진율 대비 판매가" sub={geunPriceLabel(myP)}>{myP > 0 ? perKg(myP) : '—'}</Row>
