@@ -1,12 +1,31 @@
 import { useEffect, useRef, useState } from 'react';
 import { todayStr } from '../dates.js';
 import { YIELD_PARTS, FIXED_PART_REVENUE } from '../yieldParts.js';
-import { geunPriceLabel } from '../units.js';
+import { KG_PER_GEUN } from '../units.js';
 import { createYield, confirmYield } from '../api/receipts.js';
 
 const won = (n) => `${Math.round(n).toLocaleString()}원`;
 
 const STEP_LABELS = { 1: '마리 등록', 2: '부위 입력', 3: '결과 확인' };
+
+// 부위 단가는 사용자가 마지막에 친 칸(priceBasis)의 원본값만 보관하고,
+// kg 환산값과 반대쪽 칸 표시값은 렌더 중 계산한다.
+// 반올림은 화면 표시에만 적용 — 매출액/전송은 아래 kg 단가 원본값을 쓴다.
+function kgPriceOf(v) {
+  const raw = Number(v?.price);
+  if (v?.price === '' || v?.price == null || !Number.isFinite(raw)) return null;
+  return v.priceBasis === 'geun' ? raw / KG_PER_GEUN : raw;
+}
+
+// 펼친 부위의 kg/근 두 칸에 표시할 값 (기준 칸은 원본, 반대쪽은 반올림한 파생값)
+function priceFields(v) {
+  const kgPrice = kgPriceOf(v);
+  if (kgPrice == null) return { kg: '', geun: '' };
+  const raw = String(v.price);
+  return v?.priceBasis === 'geun'
+    ? { kg: String(Math.round(kgPrice)), geun: raw }
+    : { kg: raw, geun: String(Math.round(kgPrice * KG_PER_GEUN)) };
+}
 
 // 장부 스타일 입력 행 (라벨 좌 / 입력 우 / 하단 가로줄)
 function Field({ label, unit, children }) {
@@ -50,7 +69,7 @@ export default function YieldScreen({ step, onNext, onBack, onGoHome }) {
   const [error, setError] = useState(null);
 
   // 2단계 · 부위 입력 (일반부위 중량/단가, 등뼈·미니족 완료 여부, 펼친 부위)
-  const [partValues, setPartValues] = useState({}); // { [부위명]: { weight, price } }
+  const [partValues, setPartValues] = useState({}); // { [부위명]: { weight, price, priceBasis } } — price는 기준 칸의 원본값
   const [fixedDone, setFixedDone] = useState({}); // { [부위명]: true } (등뼈·미니족)
   const [openPart, setOpenPart] = useState(null);
 
@@ -97,12 +116,12 @@ export default function YieldScreen({ step, onNext, onBack, onGoHome }) {
 
   const marginDone = (name) => {
     const v = partValues[name];
-    return !!v && Number(v.weight) > 0 && Number(v.price) > 0;
+    return !!v && Number(v.weight) > 0 && kgPriceOf(v) > 0;
   };
   const isDone = (p) => (p.marginIncluded ? marginDone(p.name) : !!fixedDone[p.name]);
   const revenueOf = (p) => {
     if (!p.marginIncluded) return fixedDone[p.name] ? FIXED_PART_REVENUE : 0;
-    return marginDone(p.name) ? Number(partValues[p.name].weight) * Number(partValues[p.name].price) : 0;
+    return marginDone(p.name) ? Number(partValues[p.name].weight) * kgPriceOf(partValues[p.name]) : 0;
   };
   // 총매출액 = 마진 포함 부위(1~10)만 합산. 등뼈·미니족 제외.
   const totalRevenue = YIELD_PARTS.filter((p) => p.marginIncluded).reduce((s, p) => s + revenueOf(p), 0);
@@ -130,7 +149,7 @@ export default function YieldScreen({ step, onNext, onBack, onGoHome }) {
           .map(({ name, v }) => ({
             part_name: name,
             weight_kg: v.weight === '' ? null : v.weight,
-            unit_price: v.price === '' ? null : v.price,
+            unit_price: kgPriceOf(v),
           }));
         const { measurement } = await createYield({
           measured_date: measuredDate,
@@ -160,6 +179,8 @@ export default function YieldScreen({ step, onNext, onBack, onGoHome }) {
   }
   const updatePart = (name, field, val) =>
     setPartValues((prev) => ({ ...prev, [name]: { ...prev[name], [field]: val } }));
+  const updatePrice = (name, basis, val) =>
+    setPartValues((prev) => ({ ...prev, [name]: { ...prev[name], price: val, priceBasis: basis } }));
 
   return (
     <div style={{ padding: '0 16px 40px' }}>
@@ -262,20 +283,31 @@ export default function YieldScreen({ step, onNext, onBack, onGoHome }) {
                   style={inputStyle}
                 />
               </Field>
-              <Field label="판매단가" unit="원/kg">
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  value={partValues[openPart]?.price ?? ''}
-                  onChange={(e) => updatePart(openPart, 'price', e.target.value)}
-                  style={inputStyle}
-                />
-              </Field>
-              {geunPriceLabel(partValues[openPart]?.price) && (
-                <div style={{ marginTop: 6, textAlign: 'right', fontSize: 13, color: 'var(--ink-muted)' }}>
-                  {geunPriceLabel(partValues[openPart]?.price)}
-                </div>
-              )}
+              <div style={{ display: 'flex', gap: 10, padding: '14px 0', borderBottom: '1px solid var(--hairline)' }}>
+                {[
+                  { basis: 'kg', label: '판매단가 (원/kg)' },
+                  { basis: 'geun', label: '판매단가 (원/근)' },
+                ].map(({ basis, label }) => {
+                  const derived = (partValues[openPart]?.priceBasis ?? 'kg') !== basis;
+                  return (
+                    <label key={basis} style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: 'var(--ink-muted)', fontSize: 13, marginBottom: 4 }}>{label}</div>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        value={priceFields(partValues[openPart])[basis]}
+                        onChange={(e) => updatePrice(openPart, basis, e.target.value)}
+                        style={{
+                          ...inputStyle,
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          color: derived ? 'var(--ink-muted)' : 'var(--ink)',
+                        }}
+                      />
+                    </label>
+                  );
+                })}
+              </div>
             </div>
           )}
 
